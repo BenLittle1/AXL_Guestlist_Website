@@ -7,10 +7,12 @@ const currentDateEl = document.getElementById('currentDate');
 const guestListEl = document.getElementById('guestList');
 const prevDayBtn = document.getElementById('prevDay');
 const nextDayBtn = document.getElementById('nextDay');
+const adminBtn = document.getElementById('adminBtn');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     initializeDateNavigation();
+    initializeNavigation();
     updateDashboard();
     initializeRealTimeSync();
 });
@@ -25,6 +27,19 @@ function initializeDateNavigation() {
     nextDayBtn.addEventListener('click', () => {
         currentDate.setDate(currentDate.getDate() + 1);
         updateDashboard();
+    });
+}
+
+// Navigation functionality
+function initializeNavigation() {
+    adminBtn.addEventListener('click', () => {
+        const password = prompt('Enter admin password:');
+        if (password === 'AXL') {
+            sessionStorage.setItem('adminAuth', 'true');
+            window.location.href = 'admin.html';
+        } else if (password !== null) {
+            alert('Incorrect password. Access denied.');
+        }
     });
 }
 

@@ -17,12 +17,33 @@ const guestForm = document.getElementById('guestForm');
 const guestNameInput = document.getElementById('guestName');
 const floorAccessInput = document.getElementById('floorAccess');
 const cancelBtn = document.getElementById('cancelBtn');
+const securityBtn = document.getElementById('securityBtn');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
+    checkAuthentication();
+    initializeNavigation();
     renderCalendar();
     initializeModal();
 });
+
+// Authentication check
+function checkAuthentication() {
+    const isAuthenticated = sessionStorage.getItem('adminAuth');
+    if (!isAuthenticated) {
+        alert('Access denied. Redirecting to security dashboard.');
+        window.location.href = 'index.html';
+        return;
+    }
+}
+
+// Navigation functionality
+function initializeNavigation() {
+    securityBtn.addEventListener('click', () => {
+        sessionStorage.removeItem('adminAuth'); // Clear auth when leaving admin
+        window.location.href = 'index.html';
+    });
+}
 
 // Calendar functionality
 function renderCalendar() {
