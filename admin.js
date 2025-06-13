@@ -18,10 +18,13 @@ const guestNameInput = document.getElementById('guestName');
 const floorAccessInput = document.getElementById('floorAccess');
 const cancelBtn = document.getElementById('cancelBtn');
 const securityBtn = document.getElementById('securityBtn');
+const logoutBtn = document.getElementById('logoutBtn');
+const currentUserEl = document.getElementById('currentUser');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     checkAuthentication();
+    displayCurrentUser();
     initializeNavigation();
     renderCalendar();
     initializeModal();
@@ -29,20 +32,65 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Authentication check
 function checkAuthentication() {
-    const isAuthenticated = sessionStorage.getItem('adminAuth');
-    if (!isAuthenticated) {
-        alert('Access denied. Redirecting to security dashboard.');
-        window.location.href = 'index.html';
+    const authData = sessionStorage.getItem('adminAuth');
+    if (!authData) {
+        window.location.href = 'login.html';
         return;
+    }
+    
+    try {
+        const auth = JSON.parse(authData);
+        const loginTime = new Date(auth.loginTime);
+        const now = new Date();
+        const sessionDuration = (now - loginTime) / 1000 / 60; // minutes
+        
+        // Session expires after 4 hours (240 minutes)
+        if (sessionDuration > 240) {
+            sessionStorage.removeItem('adminAuth');
+            alert('Your session has expired. Please log in again.');
+            window.location.href = 'login.html';
+            return;
+        }
+    } catch (e) {
+        sessionStorage.removeItem('adminAuth');
+        window.location.href = 'login.html';
+        return;
+    }
+}
+
+// Display current user information
+function displayCurrentUser() {
+    const authData = sessionStorage.getItem('adminAuth');
+    if (authData) {
+        try {
+            const auth = JSON.parse(authData);
+            currentUserEl.textContent = auth.username;
+        } catch (e) {
+            currentUserEl.textContent = 'Unknown';
+        }
     }
 }
 
 // Navigation functionality
 function initializeNavigation() {
     securityBtn.addEventListener('click', () => {
-        sessionStorage.removeItem('adminAuth'); // Clear auth when leaving admin
         window.location.href = 'index.html';
     });
+    
+    logoutBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to logout?')) {
+            logout();
+        }
+    });
+}
+
+// Logout functionality
+function logout() {
+    // Clear authentication data
+    sessionStorage.removeItem('adminAuth');
+    
+    // Redirect to login page
+    window.location.href = 'login.html';
 }
 
 // Calendar functionality

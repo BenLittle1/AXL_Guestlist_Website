@@ -38,7 +38,28 @@ function initializeDateNavigation() {
 // Navigation functionality
 function initializeNavigation() {
     adminBtn.addEventListener('click', () => {
-        openPasswordModal();
+        // Check if already authenticated
+        const authData = sessionStorage.getItem('adminAuth');
+        if (authData) {
+            try {
+                const auth = JSON.parse(authData);
+                const loginTime = new Date(auth.loginTime);
+                const now = new Date();
+                const sessionDuration = (now - loginTime) / 1000 / 60; // minutes
+                
+                // Session expires after 4 hours (240 minutes)
+                if (sessionDuration <= 240) {
+                    // Still authenticated, go directly to admin
+                    window.location.href = 'admin.html';
+                    return;
+                }
+            } catch (e) {
+                // Invalid auth data, continue to login
+            }
+        }
+        
+        // Redirect to login page
+        window.location.href = 'login.html';
     });
 }
 
