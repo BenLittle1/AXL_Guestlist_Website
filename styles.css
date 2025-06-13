@@ -156,52 +156,78 @@ body {
 }
 
 .guest-list {
-    border: 1px solid #374151;
-    background: rgba(15, 23, 42, 0.3);
-    border-radius: 8px;
+    border: 1px solid rgba(55, 65, 81, 0.5);
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 12px;
     min-height: 200px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .guest-table {
     width: 100%;
-    border-collapse: collapse;
-    border-radius: 6px;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 8px;
     overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .guest-table th {
-    background: #374151;
+    background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
     color: #ffffff;
-    padding: 16px;
+    padding: 20px 24px;
     text-align: left;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
     border: none;
+    position: relative;
 }
 
 .guest-table th:first-child {
-    border-right: 1px solid rgba(255, 255, 255, 0.2);
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .guest-table td {
-    padding: 16px;
-    border-bottom: 1px solid #374151;
-    font-size: 15px;
-    background: transparent;
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(55, 65, 81, 0.3);
+    font-size: 16px;
+    background: rgba(30, 41, 59, 0.4);
     color: #f8fafc;
+    transition: all 0.2s ease;
+    position: relative;
 }
 
 .guest-table td:first-child {
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+    font-weight: 600;
+}
+
+.guest-table td:last-child {
+    text-align: center;
+    font-weight: 700;
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
 }
 
 .guest-table tr:hover td {
-    background: rgba(75, 85, 99, 0.2);
+    background: rgba(59, 130, 246, 0.1);
+    transform: translateY(-1px);
+}
+
+.guest-table tr:hover td:last-child {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
 }
 
 .guest-table tr:last-child td {
     border-bottom: none;
+}
+
+.guest-table tbody tr {
+    transition: all 0.2s ease;
 }
 
 .no-guests {
@@ -212,6 +238,10 @@ body {
     font-size: 16px;
     color: #9ca3af;
     letter-spacing: 0.3px;
+    font-style: italic;
+    background: rgba(30, 41, 59, 0.2);
+    border-radius: 8px;
+    margin: 20px;
 }
 
 /* Calendar */
