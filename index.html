@@ -33,6 +33,24 @@
         </div>
     </div>
 
+    <!-- Password Modal -->
+    <div id="passwordModal" class="modal">
+        <div class="modal-content password-modal">
+            <h3 class="modal-title">ADMIN ACCESS</h3>
+            <p class="modal-subtitle">Enter admin password to continue</p>
+            <form id="passwordForm" class="password-form">
+                <div class="form-group">
+                    <label for="adminPassword" class="form-label">PASSWORD</label>
+                    <input type="password" id="adminPassword" class="form-input" placeholder="Enter password" required autocomplete="off">
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="cancelPasswordBtn" class="btn btn-secondary">CANCEL</button>
+                    <button type="submit" class="btn btn-primary">ACCESS ADMIN</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="security.js"></script>
 </body>
 </html> 

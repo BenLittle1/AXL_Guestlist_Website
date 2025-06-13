@@ -637,6 +637,67 @@ body {
     transform: translateY(-1px);
 }
 
+/* Password Modal */
+.password-modal {
+    max-width: 450px;
+    text-align: center;
+}
+
+.modal-subtitle {
+    font-size: 16px;
+    color: #94a3b8;
+    margin-bottom: 30px;
+    letter-spacing: 0.5px;
+    line-height: 1.4;
+}
+
+.password-form {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.password-form .form-group {
+    text-align: left;
+}
+
+.password-form .form-input {
+    font-size: 18px;
+    padding: 20px;
+    text-align: center;
+    letter-spacing: 1px;
+    border: 3px solid rgba(59, 130, 246, 0.3);
+    transition: all 0.3s ease;
+}
+
+.password-form .form-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+    transform: scale(1.02);
+}
+
+.password-form .form-actions {
+    margin-top: 10px;
+    gap: 15px;
+}
+
+.password-form .btn {
+    padding: 16px 28px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+/* Shake animation for password errors */
+@keyframes shake {
+    0%, 20%, 40%, 60%, 80% {
+        transform: translateX(0);
+    }
+    10%, 30%, 50%, 70%, 90% {
+        transform: translateX(-8px);
+    }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .container {
@@ -708,5 +769,21 @@ body {
     .guest-table td {
         padding: 18px 12px;
         font-size: 14px;
+    }
+    
+    .password-modal {
+        margin: 20px;
+        max-width: none;
+        width: calc(100% - 40px);
+    }
+    
+    .password-form .form-input {
+        font-size: 16px;
+        padding: 18px;
+    }
+    
+    .password-form .form-actions {
+        flex-direction: column;
+        gap: 12px;
     }
 } 

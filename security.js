@@ -8,11 +8,16 @@ const guestListEl = document.getElementById('guestList');
 const prevDayBtn = document.getElementById('prevDay');
 const nextDayBtn = document.getElementById('nextDay');
 const adminBtn = document.getElementById('adminBtn');
+const passwordModal = document.getElementById('passwordModal');
+const passwordForm = document.getElementById('passwordForm');
+const adminPasswordInput = document.getElementById('adminPassword');
+const cancelPasswordBtn = document.getElementById('cancelPasswordBtn');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     initializeDateNavigation();
     initializeNavigation();
+    initializePasswordModal();
     updateDashboard();
     initializeRealTimeSync();
 });
@@ -33,14 +38,76 @@ function initializeDateNavigation() {
 // Navigation functionality
 function initializeNavigation() {
     adminBtn.addEventListener('click', () => {
-        const password = prompt('Enter admin password:');
+        openPasswordModal();
+    });
+}
+
+// Password modal functionality
+function initializePasswordModal() {
+    // Form submission
+    passwordForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const password = adminPasswordInput.value;
+        
         if (password === 'AXL') {
             sessionStorage.setItem('adminAuth', 'true');
+            closePasswordModal();
             window.location.href = 'admin.html';
-        } else if (password !== null) {
-            alert('Incorrect password. Access denied.');
+        } else {
+            showPasswordError();
         }
     });
+    
+    // Cancel button
+    cancelPasswordBtn.addEventListener('click', () => {
+        closePasswordModal();
+    });
+    
+    // Close modal when clicking outside
+    passwordModal.addEventListener('click', (e) => {
+        if (e.target === passwordModal) {
+            closePasswordModal();
+        }
+    });
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && passwordModal.classList.contains('active')) {
+            closePasswordModal();
+        }
+    });
+}
+
+function openPasswordModal() {
+    passwordModal.classList.add('active');
+    adminPasswordInput.value = '';
+    adminPasswordInput.focus();
+    clearPasswordError();
+}
+
+function closePasswordModal() {
+    passwordModal.classList.remove('active');
+    adminPasswordInput.value = '';
+    clearPasswordError();
+}
+
+function showPasswordError() {
+    adminPasswordInput.style.borderColor = '#dc2626';
+    adminPasswordInput.style.boxShadow = '0 0 0 4px rgba(220, 38, 38, 0.15)';
+    adminPasswordInput.placeholder = 'Incorrect password. Try again.';
+    adminPasswordInput.value = '';
+    
+    // Shake animation
+    adminPasswordInput.style.animation = 'shake 0.5s ease-in-out';
+    setTimeout(() => {
+        adminPasswordInput.style.animation = '';
+    }, 500);
+}
+
+function clearPasswordError() {
+    adminPasswordInput.style.borderColor = '';
+    adminPasswordInput.style.boxShadow = '';
+    adminPasswordInput.placeholder = 'Enter password';
 }
 
 // Dashboard functionality
