@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Dashboard - Guest Access Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Security Dashboard Header -->
+        <div class="page-header">
+            <h1 class="page-title">AXL SECURITY DASHBOARD</h1>
+        </div>
+
+        <!-- Date Navigation -->
+        <div class="date-navigation">
+            <button id="prevDay" class="date-nav">&lt;</button>
+            <div class="date-header" id="currentDate"></div>
+            <button id="nextDay" class="date-nav">&gt;</button>
+        </div>
+
+        <!-- Guest Section -->
+        <div class="guest-section">
+            <h2 class="section-title">GUEST ACCESS</h2>
+            <div id="guestList" class="guest-list"></div>
+        </div>
+    </div>
+
+    <script src="security.js"></script>
+</body>
+</html> 
