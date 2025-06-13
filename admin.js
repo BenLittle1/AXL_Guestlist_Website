@@ -64,11 +64,43 @@ function displayCurrentUser() {
     if (authData) {
         try {
             const auth = JSON.parse(authData);
-            currentUserEl.textContent = auth.username;
+            
+            // Try to get full name from user accounts
+            const userAccounts = getUserAccounts();
+            const userAccount = userAccounts.find(account => 
+                account.username === auth.username && account.isActive
+            );
+            
+            if (userAccount) {
+                currentUserEl.textContent = `${userAccount.fullName} (${auth.username})`;
+            } else {
+                // Fallback to username for hardcoded accounts
+                const displayName = getAdminDisplayName(auth.username);
+                currentUserEl.textContent = displayName;
+            }
         } catch (e) {
             currentUserEl.textContent = 'Unknown';
         }
     }
+}
+
+// Get user accounts from localStorage
+function getUserAccounts() {
+    try {
+        return JSON.parse(localStorage.getItem('userAccounts')) || [];
+    } catch (error) {
+        return [];
+    }
+}
+
+// Get display name for hardcoded admin accounts
+function getAdminDisplayName(username) {
+    const adminNames = {
+        'admin': 'System Administrator',
+        'security': 'Security Personnel',
+        'manager': 'Building Manager'
+    };
+    return adminNames[username] || username;
 }
 
 // Navigation functionality

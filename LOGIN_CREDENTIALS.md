@@ -21,8 +21,21 @@ The admin panel is now protected with a secure login system. Use one of the foll
 ## Access Flow:
 
 1. **Security Dashboard** (`index.html`) - Public access to view guests
-2. **Login Page** (`login.html`) - Secure authentication
-3. **Admin Panel** (`admin.html`) - Protected area for guest management
+2. **Login Page** (`login.html`) - Secure authentication with existing accounts
+3. **Signup Page** (`signup.html`) - Create new accounts with building access code
+4. **Admin Panel** (`admin.html`) - Protected area for guest management
+
+## Creating New Accounts:
+
+**Building Access Code:** `AXL-SECURE-2024`
+
+To create a new account:
+1. Go to the Login page and click "CREATE ACCOUNT"
+2. Fill in all required information
+3. Enter the building access code above
+4. Choose your access level (User, Manager, or Security)
+5. Create a strong password (8+ chars, uppercase, lowercase, number, special char)
+6. Your account will be stored locally and ready for use
 
 ## Security Features:
 
@@ -41,10 +54,14 @@ The admin panel is now protected with a secure login system. Use one of the foll
 
 ## Notes:
 
-- Credentials are currently stored client-side for demonstration
-- In production, implement server-side authentication
-- Sessions are browser-tab specific (sessionStorage)
-- Multiple users can have different access levels if needed
+- **Default Admin Credentials**: Hardcoded for immediate access
+- **User-Created Accounts**: Stored in browser localStorage
+- **Password Security**: User passwords are hashed before storage
+- **Building Access Code**: Required for account creation (`AXL-SECURE-2024`)
+- **Session Management**: 4-hour timeout, browser-tab specific
+- **Account Validation**: Real-time username/email uniqueness checking
+- **Access Levels**: Different permission levels (User, Manager, Security)
+- **Production Note**: In production, implement server-side authentication
 
 ---
 

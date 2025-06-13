@@ -11,6 +11,7 @@ const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
 const errorMessage = document.getElementById('errorMessage');
 const backBtn = document.getElementById('backBtn');
+const signupBtn = document.getElementById('signupBtn');
 
 // Initialize the login page
 document.addEventListener('DOMContentLoaded', function() {
@@ -40,6 +41,10 @@ function initializeForm() {
 function initializeNavigation() {
     backBtn.addEventListener('click', () => {
         window.location.href = 'index.html';
+    });
+    
+    signupBtn.addEventListener('click', () => {
+        window.location.href = 'signup.html';
     });
 }
 
@@ -99,9 +104,42 @@ async function handleLogin(e) {
 
 // Validate user credentials
 function validateCredentials(username, password) {
-    return ADMIN_CREDENTIALS.some(credential => 
+    // Check hardcoded admin credentials first
+    const isAdminValid = ADMIN_CREDENTIALS.some(credential => 
         credential.username === username && credential.password === password
     );
+    
+    if (isAdminValid) {
+        return true;
+    }
+    
+    // Check user-created accounts
+    const userAccounts = getUserAccounts();
+    return userAccounts.some(account => 
+        account.username === username && 
+        account.password === hashPassword(password) &&
+        account.isActive
+    );
+}
+
+// Get user-created accounts from localStorage
+function getUserAccounts() {
+    try {
+        return JSON.parse(localStorage.getItem('userAccounts')) || [];
+    } catch (error) {
+        return [];
+    }
+}
+
+// Simple password hashing (matches signup.js)
+function hashPassword(password) {
+    let hash = 0;
+    for (let i = 0; i < password.length; i++) {
+        const char = password.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+    return hash.toString();
 }
 
 // Set authentication in session
