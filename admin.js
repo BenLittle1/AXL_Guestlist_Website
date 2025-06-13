@@ -266,21 +266,19 @@ function displayExistingGuests(date) {
 
 // Delete a guest
 function deleteGuest(dateKey, guestIndex) {
-    if (confirm('Are you sure you want to delete this guest?')) {
-        guests[dateKey].splice(guestIndex, 1);
-        
-        // Remove the date entry if no guests left
-        if (guests[dateKey].length === 0) {
-            delete guests[dateKey];
-        }
-        
-        // Save to localStorage
-        localStorage.setItem('guestData', JSON.stringify(guests));
-        
-        // Update display
-        displayExistingGuests(selectedDate);
-        renderCalendar();
+    guests[dateKey].splice(guestIndex, 1);
+    
+    // Remove the date entry if no guests left
+    if (guests[dateKey].length === 0) {
+        delete guests[dateKey];
     }
+    
+    // Save to localStorage
+    localStorage.setItem('guestData', JSON.stringify(guests));
+    
+    // Update display
+    displayExistingGuests(selectedDate);
+    renderCalendar();
 }
 
 // Parse floor access input
