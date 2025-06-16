@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Admin Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <h1 class="page-title">USER MANAGEMENT</h1>
+            <div class="admin-header">
+                <div class="admin-user-info">
+                    <span>Logged in as: <span id="currentUser" class="admin-username"></span></span>
+                </div>
+                <div class="page-navigation">
+                    <button id="backBtn" class="nav-link">BACK TO ADMIN</button>
+                    <button id="logoutBtn" class="logout-btn">LOGOUT</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Section -->
+        <div class="users-section">
+            <div class="section-header">
+                <h2 class="section-title">REGISTERED USERS</h2>
+                <button id="refreshBtn" class="btn btn-secondary">REFRESH</button>
+            </div>
+            
+            <div id="usersContainer" class="users-container">
+                <div class="loading">Loading users...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin-users.js"></script>
+</body>
+</html> 

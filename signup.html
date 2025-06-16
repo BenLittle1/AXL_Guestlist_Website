@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
 </head>
 <body>
     <div class="login-container">
@@ -45,21 +47,9 @@
                     <input type="password" id="confirmPassword" class="form-input" required autocomplete="new-password">
                 </div>
                 
-                <div class="form-group">
-                    <label for="accessLevel" class="form-label">ACCESS LEVEL</label>
-                    <select id="accessLevel" class="form-input" required>
-                        <option value="">Select Access Level</option>
-                        <option value="user">User - Basic Admin Access</option>
-                        <option value="manager">Manager - Full Admin Access</option>
-                        <option value="security">Security - Guest Management</option>
-                    </select>
-                </div>
+
                 
-                <div class="form-group">
-                    <label for="accessCode" class="form-label">BUILDING ACCESS CODE</label>
-                    <input type="password" id="accessCode" class="form-input" required placeholder="Enter building access code">
-                    <small class="form-help">Contact building management for the access code</small>
-                </div>
+
                 
                 <div id="errorMessage" class="error-message"></div>
                 <div id="successMessage" class="success-message"></div>

@@ -1,0 +1,21 @@
+const express = require('express');
+const dotenv = require('dotenv');
+const cors = require('cors');
+
+// Load env vars
+dotenv.config();
+
+const app = express();
+
+// Enable CORS
+app.use(cors());
+
+// Body parser
+app.use(express.json());
+
+// Define routes
+app.use('/api/auth', require('./routes/auth'));
+
+const PORT = process.env.PORT || 5001;
+
+app.listen(PORT, () => console.log(`Server started on port ${PORT}`)); 

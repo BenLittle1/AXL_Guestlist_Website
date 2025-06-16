@@ -1,10 +1,3 @@
-// Secure credentials (in production, this should be handled server-side)
-const ADMIN_CREDENTIALS = [
-    { username: 'admin', password: 'AXL2024!Security' },
-    { username: 'security', password: 'BuildingAccess2024!' },
-    { username: 'manager', password: 'AXLManager!2024' }
-];
-
 // DOM elements
 const loginForm = document.getElementById('loginForm');
 const usernameInput = document.getElementById('username');
@@ -16,14 +9,20 @@ const signupBtn = document.getElementById('signupBtn');
 // Initialize the login page
 document.addEventListener('DOMContentLoaded', function() {
     // Check if already authenticated
-    if (isAuthenticated()) {
-        window.location.href = 'admin.html';
-        return;
-    }
+    checkAuthStatus();
     
     initializeForm();
     initializeNavigation();
 });
+
+// Check authentication status
+async function checkAuthStatus() {
+    const { data: { user } } = await window.supabaseClient.auth.getUser();
+    if (user) {
+        window.location.href = 'admin.html';
+        return;
+    }
+}
 
 // Form initialization
 function initializeForm() {
@@ -52,15 +51,15 @@ function initializeNavigation() {
 async function handleLogin(e) {
     e.preventDefault();
     
-    const username = usernameInput.value.trim();
+    const emailOrUsername = usernameInput.value.trim().toLowerCase();
     const password = passwordInput.value;
     
     // Clear previous error
     clearErrorMessage();
     
     // Validate inputs
-    if (!username || !password) {
-        showError('Please enter both username and password.');
+    if (!emailOrUsername || !password) {
+        showError('Please enter both email/username and password.');
         return;
     }
     
@@ -70,117 +69,56 @@ async function handleLogin(e) {
     submitBtn.textContent = 'AUTHENTICATING...';
     submitBtn.disabled = true;
     
-    // Add slight delay to simulate authentication process
-    setTimeout(() => {
-        const isValid = validateCredentials(username, password);
+    try {
+        let authResult;
         
-        if (isValid) {
-            // Set authentication
-            setAuthentication(username);
-            
-            // Redirect to admin panel
+        // If input looks like an email, try email login first
+        if (emailOrUsername.includes('@')) {
+            authResult = await window.supabaseClient.auth.signInWithPassword({
+                email: emailOrUsername,
+                password: password
+            });
+        } else {
+            // For username login, we need to find the user by username first
+            // Since Supabase doesn't support username login natively,
+            // we'll try a simple email-based approach for now
+            throw new Error('Username login not fully implemented. Please use your email address.');
+        }
+
+        if (authResult.error) {
+            throw new Error('Invalid email or password.');
+        }
+
+        // Check user role and redirect accordingly
+        const user = authResult.data.user;
+        const userRole = user.user_metadata?.access_level || 'user';
+        
+        if (userRole === 'admin' || userRole === 'manager') {
             window.location.href = 'admin.html';
         } else {
-            // Show error
-            showError('Invalid username or password. Please try again.');
-            
-            // Reset form
-            passwordInput.value = '';
-            passwordInput.focus();
-            
-            // Add shake animation to form
-            const loginCard = document.querySelector('.login-card');
-            loginCard.classList.add('shake');
-            setTimeout(() => {
-                loginCard.classList.remove('shake');
-            }, 500);
+            // Regular users go to security dashboard
+            window.location.href = 'index.html';
         }
+
+    } catch (err) {
+        // Show error
+        showError(err.message);
         
+        // Reset form
+        passwordInput.value = '';
+        passwordInput.focus();
+        
+        // Add shake animation to form
+        const loginCard = document.querySelector('.login-card');
+        loginCard.classList.add('shake');
+        setTimeout(() => {
+            loginCard.classList.remove('shake');
+        }, 500);
+    } finally {
         // Reset button
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
-    }, 800);
-}
-
-// Validate user credentials
-function validateCredentials(username, password) {
-    // Check hardcoded admin credentials first
-    const isAdminValid = ADMIN_CREDENTIALS.some(credential => 
-        credential.username === username && credential.password === password
-    );
-    
-    if (isAdminValid) {
-        return true;
     }
-    
-    // Check user-created accounts
-    const userAccounts = getUserAccounts();
-    return userAccounts.some(account => 
-        account.username === username && 
-        account.password === hashPassword(password) &&
-        account.isActive
-    );
-}
-
-// Get user-created accounts from localStorage
-function getUserAccounts() {
-    try {
-        return JSON.parse(localStorage.getItem('userAccounts')) || [];
-    } catch (error) {
-        return [];
-    }
-}
-
-// Simple password hashing (matches signup.js)
-function hashPassword(password) {
-    let hash = 0;
-    for (let i = 0; i < password.length; i++) {
-        const char = password.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32-bit integer
-    }
-    return hash.toString();
-}
-
-// Set authentication in session
-function setAuthentication(username) {
-    const authData = {
-        username: username,
-        loginTime: new Date().toISOString(),
-        sessionId: generateSessionId()
-    };
-    
-    sessionStorage.setItem('adminAuth', JSON.stringify(authData));
-    localStorage.setItem('lastLoginUser', username);
-}
-
-// Check if user is authenticated
-function isAuthenticated() {
-    const authData = sessionStorage.getItem('adminAuth');
-    if (!authData) return false;
-    
-    try {
-        const auth = JSON.parse(authData);
-        const loginTime = new Date(auth.loginTime);
-        const now = new Date();
-        const sessionDuration = (now - loginTime) / 1000 / 60; // minutes
-        
-        // Session expires after 4 hours (240 minutes)
-        if (sessionDuration > 240) {
-            sessionStorage.removeItem('adminAuth');
-            return false;
-        }
-        
-        return true;
-    } catch (e) {
-        sessionStorage.removeItem('adminAuth');
-        return false;
-    }
-}
-
-// Generate a simple session ID
-function generateSessionId() {
-    return Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
 }
 
 // Show error message
