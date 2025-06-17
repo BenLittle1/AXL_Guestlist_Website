@@ -43,8 +43,28 @@ async function checkAuthentication() {
         return;
     }
     
-    // Check if user has admin or manager permissions
-    const userRole = user.user_metadata?.access_level || 'user';
+    // Check if user has admin or manager permissions - try profiles table first
+    let userRole = 'user';
+    
+    try {
+        const { data: profile } = await window.supabaseClient
+            .from('profiles')
+            .select('access_level')
+            .eq('id', user.id)
+            .single();
+        
+        if (profile) {
+            userRole = profile.access_level || 'user';
+        } else {
+            // Fallback to auth metadata
+            userRole = user.user_metadata?.access_level || 'user';
+        }
+    } catch (profileError) {
+        console.log('Could not fetch profile for auth check, using auth metadata:', profileError);
+        // Fallback to auth metadata
+        userRole = user.user_metadata?.access_level || 'user';
+    }
+    
     if (userRole !== 'admin' && userRole !== 'manager') {
         alert('Access denied. Admin or Manager privileges required.');
         window.location.href = 'index.html';
@@ -57,7 +77,28 @@ async function setupRoleBasedUI() {
     const { data: { user } } = await window.supabaseClient.auth.getUser();
     if (!user) return;
     
-    const userRole = user.user_metadata?.access_level || 'user';
+    // Get user role - try profiles table first, then fallback to user_metadata
+    let userRole = 'user';
+    
+    try {
+        const { data: profile } = await window.supabaseClient
+            .from('profiles')
+            .select('access_level')
+            .eq('id', user.id)
+            .single();
+        
+        if (profile) {
+            userRole = profile.access_level || 'user';
+        } else {
+            // Fallback to auth metadata
+            userRole = user.user_metadata?.access_level || 'user';
+        }
+    } catch (profileError) {
+        console.log('Could not fetch profile for UI setup, using auth metadata:', profileError);
+        // Fallback to auth metadata
+        userRole = user.user_metadata?.access_level || 'user';
+    }
+    
     const userManagementBtn = document.getElementById('userManagementBtn');
     const roleInfoEl = document.getElementById('roleInfo');
     
@@ -135,7 +176,28 @@ function initializeNavigation() {
         userManagementBtn.addEventListener('click', async () => {
             // Double-check admin status before navigation
             const { data: { user } } = await window.supabaseClient.auth.getUser();
-            const userRole = user?.user_metadata?.access_level || 'user';
+            
+            // Get user role - try profiles table first, then fallback to user_metadata
+            let userRole = 'user';
+            
+            try {
+                const { data: profile } = await window.supabaseClient
+                    .from('profiles')
+                    .select('access_level')
+                    .eq('id', user.id)
+                    .single();
+                
+                if (profile) {
+                    userRole = profile.access_level || 'user';
+                } else {
+                    // Fallback to auth metadata
+                    userRole = user?.user_metadata?.access_level || 'user';
+                }
+            } catch (profileError) {
+                console.log('Could not fetch profile for navigation check, using auth metadata:', profileError);
+                // Fallback to auth metadata
+                userRole = user?.user_metadata?.access_level || 'user';
+            }
             
             if (userRole === 'admin') {
                 window.location.href = 'admin-users.html';

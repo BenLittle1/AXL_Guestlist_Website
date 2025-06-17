@@ -71,14 +71,56 @@ function initializeNavigation() {
         window.location.href = 'admin.html';
     });
 
-    logoutBtn.addEventListener('click', async () => {
-        if (confirm('Are you sure you want to logout?')) {
-            await window.supabaseClient.auth.signOut();
-            window.location.href = 'login.html';
-        }
+    logoutBtn.addEventListener('click', () => {
+        showLogoutModal();
     });
 
     refreshBtn.addEventListener('click', loadUsers);
+}
+
+// Custom Logout Modal Functions
+function showLogoutModal() {
+    const modal = document.getElementById('logoutModal');
+    modal.classList.add('show');
+    
+    // Set up event listeners for modal buttons
+    const confirmBtn = document.getElementById('logoutConfirmBtn');
+    const cancelBtn = document.getElementById('logoutCancelBtn');
+    
+    // Remove any existing listeners to prevent duplicates
+    confirmBtn.replaceWith(confirmBtn.cloneNode(true));
+    cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+    
+    // Add fresh event listeners
+    document.getElementById('logoutConfirmBtn').addEventListener('click', async () => {
+        hideLogoutModal();
+        await window.supabaseClient.auth.signOut();
+        window.location.href = 'login.html';
+    });
+    
+    document.getElementById('logoutCancelBtn').addEventListener('click', hideLogoutModal);
+    
+    // Close modal on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            hideLogoutModal();
+        }
+    });
+    
+    // Close modal on Escape key
+    document.addEventListener('keydown', handleEscapeKey);
+}
+
+function hideLogoutModal() {
+    const modal = document.getElementById('logoutModal');
+    modal.classList.remove('show');
+    document.removeEventListener('keydown', handleEscapeKey);
+}
+
+function handleEscapeKey(e) {
+    if (e.key === 'Escape') {
+        hideLogoutModal();
+    }
 }
 
 // Load users from database
@@ -176,23 +218,7 @@ async function handleRoleUpdate(e) {
     const currentRole = select.dataset.currentRole;
 
     if (newRole === currentRole) {
-        alert('No changes to save.');
-        return;
-    }
-
-    const roleNames = {
-        user: 'User (Security Dashboard Only)',
-        manager: 'Manager (Guest Management + Dashboard)',
-        admin: 'Admin (Full System Access)'
-    };
-
-    const confirmed = confirm(
-        `Change user role from ${roleNames[currentRole]} to ${roleNames[newRole]}?\n\nThis will take effect immediately.`
-    );
-
-    if (!confirmed) {
-        select.value = currentRole; // Reset selection
-        return;
+        return; // No changes to save - silently return
     }
 
     try {
@@ -200,7 +226,7 @@ async function handleRoleUpdate(e) {
         e.target.textContent = 'Updating...';
         e.target.disabled = true;
 
-        // Update the role
+        // Update the role immediately
         const { error } = await window.supabaseClient
             .from('profiles')
             .update({ access_level: newRole })
@@ -212,7 +238,6 @@ async function handleRoleUpdate(e) {
 
         // Update the UI
         select.dataset.currentRole = newRole;
-        alert('User role updated successfully!');
 
         console.log(`✅ Updated user ${userId} role to ${newRole}`);
 
