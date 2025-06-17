@@ -2,13 +2,21 @@ const nodemailer = require('nodemailer');
 
 // Create email transporter
 const createTransporter = () => {
-    // For production, use environment variables for email credentials
-    // This configuration supports Gmail, Outlook, or custom SMTP
+    // Debug logging
+    console.log('🔍 Email Config Debug:');
+    console.log('EMAIL_USER:', process.env.EMAIL_USER ? '✅ Set' : '❌ Missing');
+    console.log('EMAIL_PASS:', process.env.EMAIL_PASS ? '✅ Set' : '❌ Missing');
+    console.log('EMAIL_HOST:', process.env.EMAIL_HOST ? '✅ Set' : '❌ Missing');
+    console.log('EMAIL_PORT:', process.env.EMAIL_PORT ? '✅ Set' : '❌ Missing');
+    
+    // Use custom SMTP config instead of service
     const emailConfig = {
-        service: process.env.EMAIL_SERVICE || 'gmail', // gmail, outlook, etc.
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: process.env.EMAIL_PORT || 587,
+        secure: false, // true for 465, false for other ports
         auth: {
-            user: process.env.EMAIL_USER, // your email address
-            pass: process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD // your app password
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD
         }
     };
 
@@ -18,6 +26,7 @@ const createTransporter = () => {
         return null; // Will be handled in createTestAccount
     }
 
+    console.log('✅ Using Gmail SMTP with configured credentials');
     return nodemailer.createTransport(emailConfig);
 };
 
