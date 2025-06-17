@@ -145,4 +145,4 @@ The visual design maintains the brutalist aesthetic while providing clear role s
 - **Bold typography** for easy reading at security desks
 - **Functional minimalism** without decorative elements
 - **Professional appearance** appropriate for corporate environments
-- **Clear information hierarchy** for quick guest verification 
+- **Clear information hierarchy** for quick guest verification # Force Railway redeploy
