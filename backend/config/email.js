@@ -8,12 +8,12 @@ const createTransporter = () => {
         service: process.env.EMAIL_SERVICE || 'gmail', // gmail, outlook, etc.
         auth: {
             user: process.env.EMAIL_USER, // your email address
-            pass: process.env.EMAIL_PASSWORD // your app password
+            pass: process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD // your app password
         }
     };
 
     // Fallback for development/testing - use ethereal email
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    if (!process.env.EMAIL_USER || (!process.env.EMAIL_PASS && !process.env.EMAIL_PASSWORD)) {
         console.warn('⚠️ Email credentials not configured. Using test account.');
         return null; // Will be handled in createTestAccount
     }
