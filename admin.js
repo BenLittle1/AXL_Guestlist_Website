@@ -1045,8 +1045,12 @@ async function sendGuestArrivalNotification(guestId) {
             throw new Error('No authentication token available');
         }
         
-        // Call notification API
-        const response = await fetch('http://localhost:5001/api/notifications/guest-arrival', {
+        // Use API_BASE_URL from environment or fallback to local for development
+        const API_BASE_URL = window.location.hostname === 'localhost' ? 
+            'http://localhost:5001' : 
+            'https://your-railway-app.up.railway.app'; // Replace with your actual Railway URL
+        
+        const response = await fetch(`${API_BASE_URL}/api/notifications/guest-arrival`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

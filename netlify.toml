@@ -8,7 +8,7 @@
 # Redirect all API calls to the backend (you'll need to update this URL after backend deployment)
 [[redirects]]
   from = "/api/*"
-  to = "https://your-backend-domain.onrender.com/api/:splat"
+  to = "https://your-railway-app.up.railway.app/api/:splat"
   status = 200
   force = true
 
