@@ -7,14 +7,14 @@
 ```bash
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
-EMAIL_USER=ben.little@queensu.ca
+EMAIL_USER=benjamin.little@axl.vc
 EMAIL_PASS=smxs erea heca zoga
-EMAIL_FROM=ben.little@queensu.ca
+EMAIL_FROM=benjamin.little@axl.vc
 ```
 
 ### Setup Notes
 
-- **Account:** ben.little@queensu.ca
+- **Account:** benjamin.little@axl.vc
 - **Method:** Gmail App Password (not regular password)
 - **2-Step Verification:** Required and enabled ✅
 - **App Password Generated:** June 17, 2025
@@ -31,7 +31,7 @@ EMAIL_FROM=ben.little@queensu.ca
 ### Current Email Features
 
 - ✅ Guest arrival notifications
-- ✅ Professional delivery from ben.little@queensu.ca
+- ✅ Professional delivery from benjamin.little@axl.vc
 - ✅ No spam folder issues
 - ✅ Real email delivery (not test emails)
 
