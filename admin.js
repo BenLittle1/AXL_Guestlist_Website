@@ -282,13 +282,19 @@ async function loadGuestsData() {
         try {
             result = await window.supabaseClient
                 .from('guests')
-                .select('id, name, organization, estimated_arrival, checked_in, visit_date, floors, created_by, created_at, updated_at')
+                .select(`
+                    id, name, organization, estimated_arrival, checked_in, visit_date, floors, created_by, created_at, updated_at,
+                    creator:profiles!created_by(full_name, username)
+                `)
                 .order('visit_date', { ascending: true });
         } catch (rlsError) {
             console.log('Regular client failed for loading, trying admin client:', rlsError.message);
             result = await window.supabaseAdminClient
                 .from('guests')
-                .select('id, name, organization, estimated_arrival, checked_in, visit_date, floors, created_by, created_at, updated_at')
+                .select(`
+                    id, name, organization, estimated_arrival, checked_in, visit_date, floors, created_by, created_at, updated_at,
+                    creator:profiles!created_by(full_name, username)
+                `)
                 .order('visit_date', { ascending: true });
         }
         
@@ -308,6 +314,13 @@ async function loadGuestsData() {
             if (!guests[dateKey]) {
                 guests[dateKey] = [];
             }
+            // Get creator information
+            let guestOf = 'Unknown';
+            if (guest.creator) {
+                // Use full_name if available, otherwise fallback to username
+                guestOf = guest.creator.full_name || guest.creator.username || 'Unknown';
+            }
+            
             guests[dateKey].push({
                 id: guest.id, // Store Supabase ID for deletion
                 name: guest.name,
@@ -315,6 +328,7 @@ async function loadGuestsData() {
                 estimatedArrival: guest.estimated_arrival,
                 checkedIn: guest.checked_in,
                 floors: guest.floors,
+                guestOf: guestOf,
                 timestamp: guest.created_at
             });
         });

@@ -211,7 +211,10 @@ async function loadGuestsFromSupabase() {
         try {
             result = await window.supabaseClient
                 .from('guests')
-                .select('id, name, organization, estimated_arrival, checked_in, visit_date, floors, created_by, created_at, updated_at')
+                .select(`
+                    id, name, organization, estimated_arrival, checked_in, visit_date, floors, created_by, created_at, updated_at,
+                    creator:profiles!created_by(full_name, username)
+                `)
                 .gte('visit_date', startDateStr)
                 .lte('visit_date', endDateStr)
                 .order('visit_date', { ascending: true });
@@ -221,7 +224,10 @@ async function loadGuestsFromSupabase() {
             if (window.supabaseAdminClient) {
                 result = await window.supabaseAdminClient
                     .from('guests')
-                    .select('id, name, organization, estimated_arrival, checked_in, visit_date, floors, created_by, created_at, updated_at')
+                    .select(`
+                        id, name, organization, estimated_arrival, checked_in, visit_date, floors, created_by, created_at, updated_at,
+                        creator:profiles!created_by(full_name, username)
+                    `)
                     .gte('visit_date', startDateStr)
                     .lte('visit_date', endDateStr)
                     .order('visit_date', { ascending: true });
@@ -243,6 +249,13 @@ async function loadGuestsFromSupabase() {
                 supabaseGuests[dateKey] = [];
             }
             
+            // Get creator information
+            let guestOf = 'Unknown';
+            if (guest.creator) {
+                // Use full_name if available, otherwise fallback to username
+                guestOf = guest.creator.full_name || guest.creator.username || 'Unknown';
+            }
+            
             supabaseGuests[dateKey].push({
                 id: guest.id,
                 name: guest.name,
@@ -250,6 +263,7 @@ async function loadGuestsFromSupabase() {
                 estimatedArrival: guest.estimated_arrival,
                 checkedIn: guest.checked_in,
                 floors: guest.floors,
+                guestOf: guestOf,
                 timestamp: guest.created_at
             });
         });
@@ -330,10 +344,11 @@ function renderGuestList(guestList) {
     const thead = document.createElement('thead');
     thead.innerHTML = `
         <tr>
-            <th>CHECKED-IN?</th>
+            <th>STATUS</th>
             <th>GUEST NAME</th>
             <th>ORGANIZATION</th>
             <th>ESTIMATED ARRIVAL</th>
+            <th>GUEST OF</th>
             <th>FLOOR ACCESS</th>
         </tr>
     `;
@@ -355,6 +370,9 @@ function renderGuestList(guestList) {
         // Arrival time display
         const arrivalTime = guest.estimatedArrival || 'Not specified';
         
+        // Guest of display
+        const guestOfDisplay = guest.guestOf || 'Unknown';
+        
         // Check-in checkbox with unique ID
         const dateKey = formatDateKey(currentDate);
         const checkboxId = `checkin-${dateKey}-${index}`;
@@ -365,6 +383,7 @@ function renderGuestList(guestList) {
             <td>${escapeHtml(guest.name)}</td>
             <td>${escapeHtml(organizationDisplay)}</td>
             <td>${arrivalTime}</td>
+            <td>${escapeHtml(guestOfDisplay)}</td>
             <td>${floorsDisplay}</td>
         `;
         tbody.appendChild(row);
