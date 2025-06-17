@@ -119,15 +119,57 @@ async function checkAuthenticationStatus() {
     }
 }
 
+// Custom Logout Modal Functions
+function showLogoutModal() {
+    const modal = document.getElementById('logoutModal');
+    modal.classList.add('show');
+    
+    // Set up event listeners for modal buttons
+    const confirmBtn = document.getElementById('logoutConfirmBtn');
+    const cancelBtn = document.getElementById('logoutCancelBtn');
+    
+    // Remove any existing listeners to prevent duplicates
+    confirmBtn.replaceWith(confirmBtn.cloneNode(true));
+    cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+    
+    // Add fresh event listeners
+    document.getElementById('logoutConfirmBtn').addEventListener('click', async () => {
+        hideLogoutModal();
+        await performLogout();
+    });
+    
+    document.getElementById('logoutCancelBtn').addEventListener('click', hideLogoutModal);
+    
+    // Close modal on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            hideLogoutModal();
+        }
+    });
+    
+    // Close modal on Escape key
+    document.addEventListener('keydown', handleEscapeKey);
+}
+
+function hideLogoutModal() {
+    const modal = document.getElementById('logoutModal');
+    modal.classList.remove('show');
+    document.removeEventListener('keydown', handleEscapeKey);
+}
+
+function handleEscapeKey(e) {
+    if (e.key === 'Escape') {
+        hideLogoutModal();
+    }
+}
+
 // Handle logout functionality
 async function handleLogout() {
-    try {
-        // Show confirmation dialog
-        const confirmLogout = confirm('Are you sure you want to logout?');
-        if (!confirmLogout) {
-            return;
-        }
+    showLogoutModal();
+}
 
+async function performLogout() {
+    try {
         // Sign out from Supabase
         const { error } = await window.supabaseClient.auth.signOut();
         if (error) {
@@ -139,11 +181,8 @@ async function handleLogout() {
         // Hide logout button
         logoutBtn.style.display = 'none';
         
-        // Show success message
-        alert('Successfully logged out!');
-        
-        // Optional: Refresh the page to reset any user-specific data
-        window.location.reload();
+        // Redirect to login page instead of showing alert and reloading
+        window.location.href = 'login.html';
         
     } catch (error) {
         console.error('Error during logout:', error);

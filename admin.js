@@ -208,10 +208,52 @@ function initializeNavigation() {
     }
     
     logoutBtn.addEventListener('click', () => {
-        if (confirm('Are you sure you want to logout?')) {
-            logout();
+        showLogoutModal();
+    });
+}
+
+// Custom Logout Modal Functions
+function showLogoutModal() {
+    const modal = document.getElementById('logoutModal');
+    modal.classList.add('show');
+    
+    // Set up event listeners for modal buttons
+    const confirmBtn = document.getElementById('logoutConfirmBtn');
+    const cancelBtn = document.getElementById('logoutCancelBtn');
+    
+    // Remove any existing listeners to prevent duplicates
+    confirmBtn.replaceWith(confirmBtn.cloneNode(true));
+    cancelBtn.replaceWith(cancelBtn.cloneNode(true));
+    
+    // Add fresh event listeners
+    document.getElementById('logoutConfirmBtn').addEventListener('click', () => {
+        hideLogoutModal();
+        logout();
+    });
+    
+    document.getElementById('logoutCancelBtn').addEventListener('click', hideLogoutModal);
+    
+    // Close modal on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            hideLogoutModal();
         }
     });
+    
+    // Close modal on Escape key
+    document.addEventListener('keydown', handleEscapeKey);
+}
+
+function hideLogoutModal() {
+    const modal = document.getElementById('logoutModal');
+    modal.classList.remove('show');
+    document.removeEventListener('keydown', handleEscapeKey);
+}
+
+function handleEscapeKey(e) {
+    if (e.key === 'Escape') {
+        hideLogoutModal();
+    }
 }
 
 // Logout functionality
@@ -733,10 +775,6 @@ async function updateGuestCheckInStatus(guestId, checkedIn) {
 
 // Delete a guest
 async function deleteGuest(dateKey, guestIndex) {
-    if (!confirm('Are you sure you want to delete this guest?')) {
-        return;
-    }
-    
     try {
         const guest = guests[dateKey][guestIndex];
         
