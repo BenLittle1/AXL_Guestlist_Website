@@ -15,6 +15,7 @@ app.use(express.json());
 
 // Define routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 const PORT = process.env.PORT || 5001;
 

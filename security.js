@@ -562,6 +562,48 @@ async function handleCheckInChange(dateKey, guestIndex, isChecked) {
     }
 }
 
+// Send guest arrival email notification
+async function sendGuestArrivalNotification(guestId) {
+    try {
+        console.log('Sending guest arrival notification for:', guestId);
+        
+        // Get auth token
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        if (!session?.access_token) {
+            throw new Error('No authentication token available');
+        }
+        
+        // Call notification API
+        const response = await fetch('http://localhost:5001/api/notifications/guest-arrival', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                guestId: guestId,
+                authToken: session.access_token
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('✅ Guest arrival notification sent:', result.message);
+            if (result.data?.previewUrl) {
+                console.log('📧 Email preview:', result.data.previewUrl);
+            }
+        } else {
+            console.warn('⚠️ Notification API returned error:', result.message);
+        }
+        
+        return result;
+        
+    } catch (error) {
+        console.error('❌ Failed to send guest arrival notification:', error);
+        throw error;
+    }
+}
+
 // Update guest check-in status in Supabase
 async function updateGuestCheckInStatus(guestId, checkedIn) {
     try {
@@ -593,6 +635,17 @@ async function updateGuestCheckInStatus(guestId, checkedIn) {
         }
         
         console.log('Guest check-in status updated successfully');
+        
+        // Send email notification if guest is being checked in (not checked out)
+        if (checkedIn) {
+            try {
+                await sendGuestArrivalNotification(guestId);
+            } catch (emailError) {
+                console.warn('Email notification failed (but check-in was successful):', emailError);
+                // Don't throw error - check-in was successful, email is just a nice-to-have
+            }
+        }
+        
         return result;
         
     } catch (error) {
