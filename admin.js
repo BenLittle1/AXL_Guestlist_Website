@@ -572,9 +572,6 @@ function displayExistingGuests(date) {
                 ? guest.floors.join(', ') 
                 : guest.floor || guest.floors; // Backward compatibility
             
-            // Add a visual indicator if guest is from Supabase vs localStorage
-            const sourceIndicator = guest.id ? '<span class="sync-indicator" title="Synced to database">✓</span>' : '<span class="local-indicator" title="Local only">⚠</span>';
-            
             // Format arrival time
             const arrivalTime = guest.estimatedArrival ? guest.estimatedArrival : 'Not specified';
             
@@ -582,9 +579,9 @@ function displayExistingGuests(date) {
             const organizationDisplay = guest.organization ? `<div class="guest-organization">Organization: ${escapeHtml(guest.organization)}</div>` : '';
             
             // Check-in status
-            const checkInStatus = guest.checkedIn ? 
-                '<span class="check-in-status checked-in">✓ Checked In</span>' : 
-                '<span class="check-in-status not-checked-in">⏱ Not Checked In</span>';
+            const checkInStatus = guest.checkedIn ?
+                '<span class="check-in-status checked-in">Checked In</span>' :
+                '<span class="check-in-status not-checked-in">Not Checked In</span>';
             
             // Check-in button
             const checkInButton = guest.checkedIn ? 
@@ -594,7 +591,7 @@ function displayExistingGuests(date) {
             return `
                 <div class="guest-item">
                     <div class="guest-info">
-                        <div class="guest-name">${escapeHtml(guest.name)} ${sourceIndicator}</div>
+                        <div class="guest-name">${escapeHtml(guest.name)}</div>
                         <div class="guest-status">${checkInStatus}</div>
                         ${organizationDisplay}
                         <div class="guest-arrival">Estimated Arrival: ${arrivalTime}</div>

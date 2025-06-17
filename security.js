@@ -62,8 +62,29 @@ function initializeNavigation() {
         // Check if already authenticated with Supabase
         const { data: { user } } = await window.supabaseClient.auth.getUser();
         if (user) {
-            // Check user role - allow admin and manager to access admin panel
-            const userRole = user.user_metadata?.access_level || 'user';
+            // Check user role - try profiles table first, then fallback to user_metadata
+            let userRole = 'user';
+            
+            try {
+                const { data: profile } = await window.supabaseClient
+                    .from('profiles')
+                    .select('access_level')
+                    .eq('id', user.id)
+                    .single();
+                
+                if (profile) {
+                    userRole = profile.access_level || 'user';
+                } else {
+                    // Fallback to auth metadata
+                    userRole = user.user_metadata?.access_level || 'user';
+                }
+            } catch (profileError) {
+                console.log('Could not fetch profile, using auth metadata:', profileError);
+                // Fallback to auth metadata
+                userRole = user.user_metadata?.access_level || 'user';
+            }
+            
+            // Allow admin and manager to access admin panel
             if (userRole === 'admin' || userRole === 'manager') {
                 window.location.href = 'admin.html';
             } else {
