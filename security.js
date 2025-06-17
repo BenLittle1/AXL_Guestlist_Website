@@ -576,7 +576,7 @@ async function sendGuestArrivalNotification(guestId) {
         // Use API_BASE_URL from environment or fallback to local for development
         const API_BASE_URL = window.location.hostname === 'localhost' ? 
             'http://localhost:5001' : 
-            'https://your-railway-app.up.railway.app'; // Replace with your actual Railway URL
+                            'https://axlguestlistwebsite-production.up.railway.app';
         
         const response = await fetch(`${API_BASE_URL}/api/notifications/guest-arrival`, {
             method: 'POST',
