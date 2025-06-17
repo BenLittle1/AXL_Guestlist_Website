@@ -7,6 +7,9 @@ const { sendGuestArrivalNotification } = require('../config/email');
 // @desc    Send email notification when a guest arrives
 // @access  Protected (requires authentication)
 router.post('/guest-arrival', async (req, res) => {
+    console.log('🔥 API REQUEST RECEIVED: /api/notifications/guest-arrival');
+    console.log('Request body:', req.body);
+    
     try {
         const { guestId, authToken } = req.body;
 
@@ -106,6 +109,7 @@ router.post('/guest-arrival', async (req, res) => {
         };
 
         // Send email notification
+        console.log('📧 ABOUT TO CALL sendGuestArrivalNotification...');
         try {
             const emailResult = await sendGuestArrivalNotification(guestDetails, creatorDetails);
             
