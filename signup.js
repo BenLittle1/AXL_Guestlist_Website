@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
 async function checkAuthStatus() {
     const { data: { user } } = await window.supabaseClient.auth.getUser();
     if (user) {
-        window.location.href = 'admin.html';
+        window.location.href = 'index.html';
         return;
     }
 }
@@ -109,7 +109,7 @@ async function handleSignup(e) {
             throw new Error(error.message);
         }
 
-        showSuccess('Account created successfully! Please check your email to verify your account, then sign in.');
+        showSuccess('Account created successfully! Please check your email to verify your account. Note: Your account will require admin approval before you can access the system.');
         
         // Clear form
         signupForm.reset();

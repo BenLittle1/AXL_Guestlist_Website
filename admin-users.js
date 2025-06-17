@@ -27,11 +27,11 @@ async function checkAuth() {
         // Check if user has admin privileges
         const { data: profile } = await window.supabaseClient
             .from('profiles')
-            .select('access_level')
+            .select('access_level, approved')
             .eq('id', user.id)
             .single();
 
-        if (!profile || profile.access_level !== 'admin') {
+        if (!profile || profile.access_level !== 'admin' || !profile.approved) {
             alert('Admin privileges required to access user management.');
             window.location.href = 'admin.html';
             return;
@@ -131,7 +131,7 @@ async function loadUsers() {
 
         const { data: users, error } = await window.supabaseClient
             .from('profiles')
-            .select('id, email, full_name, username, access_level, created_at')
+            .select('id, email, full_name, username, access_level, approved, created_at')
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -172,6 +172,7 @@ function displayUsers(users) {
                     <th>NAME</th>
                     <th>EMAIL</th>
                     <th>ROLE</th>
+                    <th>STATUS</th>
                     <th>ACTIONS</th>
                 </tr>
             </thead>
@@ -183,8 +184,13 @@ function displayUsers(users) {
                         <td>
                             <select class="role-select" data-user-id="${user.id}" data-current-role="${user.access_level || 'user'}">
                                 <option value="user" ${(user.access_level || 'user') === 'user' ? 'selected' : ''}>User</option>
-                                <option value="manager" ${user.access_level === 'manager' ? 'selected' : ''}>Manager</option>
                                 <option value="admin" ${user.access_level === 'admin' ? 'selected' : ''}>Admin</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select class="approval-select" data-user-id="${user.id}" data-current-approval="${user.approved || false}">
+                                <option value="true" ${user.approved ? 'selected' : ''}>Approved</option>
+                                <option value="false" ${!user.approved ? 'selected' : ''}>Pending</option>
                             </select>
                         </td>
                         <td>
@@ -210,15 +216,34 @@ function attachEventListeners() {
     });
 }
 
-// Handle role update
+// Handle role and approval update
 async function handleRoleUpdate(e) {
     const userId = e.target.dataset.userId;
-    const select = document.querySelector(`select[data-user-id="${userId}"]`);
-    const newRole = select.value;
-    const currentRole = select.dataset.currentRole;
+    const roleSelect = document.querySelector(`select.role-select[data-user-id="${userId}"]`);
+    const approvalSelect = document.querySelector(`select.approval-select[data-user-id="${userId}"]`);
+    
+    const newRole = roleSelect.value;
+    const currentRole = roleSelect.dataset.currentRole;
+    const newApproval = approvalSelect.value === 'true';
+    const currentApproval = approvalSelect.dataset.currentApproval === 'true';
 
-    if (newRole === currentRole) {
+    if (newRole === currentRole && newApproval === currentApproval) {
         return; // No changes to save - silently return
+    }
+
+    const changes = [];
+    if (newRole !== currentRole) {
+        changes.push(`role to ${newRole}`);
+    }
+    if (newApproval !== currentApproval) {
+        changes.push(`status to ${newApproval ? 'approved' : 'pending'}`);
+    }
+
+    if (!confirm(`Are you sure you want to change this user's ${changes.join(' and ')}?`)) {
+        // Reset selects to original values
+        roleSelect.value = currentRole;
+        approvalSelect.value = currentApproval.toString();
+        return;
     }
 
     try {
@@ -226,25 +251,76 @@ async function handleRoleUpdate(e) {
         e.target.textContent = 'Updating...';
         e.target.disabled = true;
 
-        // Update the role immediately
-        const { error } = await window.supabaseClient
-            .from('profiles')
-            .update({ access_level: newRole })
-            .eq('id', userId);
-
-        if (error) {
-            throw error;
+        // Try using the stored function first, fallback to direct updates
+        let updateError;
+        try {
+            const { error } = await window.supabaseClient.rpc('update_user_role_and_approval', {
+                target_user_id: userId,
+                new_role: newRole !== currentRole ? newRole : null,
+                new_approved: newApproval !== currentApproval ? newApproval : null
+            });
+            updateError = error;
+        } catch (rpcError) {
+            console.log('RPC function not available, using fallback method:', rpcError.message);
+            updateError = { message: 'function_not_found' };
         }
 
-        // Update the UI
-        select.dataset.currentRole = newRole;
+        // If function doesn't exist, use direct table updates
+        if (updateError && updateError.message.includes('Could not find the function')) {
+            console.log('Using fallback: direct table updates');
+            
+            // Update profiles table
+            const updateData = {};
+            if (newRole !== currentRole) {
+                updateData.access_level = newRole;
+            }
+            if (newApproval !== currentApproval) {
+                updateData.approved = newApproval;
+            }
+            
+            const { error: profileError } = await window.supabaseClient
+                .from('profiles')
+                .update(updateData)
+                .eq('id', userId);
 
-        console.log(`✅ Updated user ${userId} role to ${newRole}`);
+            if (profileError) {
+                throw profileError;
+            }
+
+            // Also update auth.users metadata if role changed (using admin client)
+            if (newRole !== currentRole && window.supabaseAdminClient) {
+                try {
+                    const { error: authError } = await window.supabaseAdminClient.auth.admin.updateUserById(
+                        userId,
+                        { 
+                            user_metadata: { access_level: newRole }
+                        }
+                    );
+                    if (authError) {
+                        console.warn('Could not update auth metadata:', authError.message);
+                    }
+                } catch (authUpdateError) {
+                    console.warn('Auth metadata update failed:', authUpdateError.message);
+                }
+            }
+        } else if (updateError) {
+            throw updateError;
+        }
+
+        // Update the UI data attributes
+        roleSelect.dataset.currentRole = newRole;
+        approvalSelect.dataset.currentApproval = newApproval.toString();
+
+        console.log(`✅ Updated user ${userId}: ${changes.join(' and ')}`);
+        alert('User updated successfully!');
 
     } catch (error) {
-        console.error('Error updating role:', error);
-        alert(`Failed to update role: ${error.message}`);
-        select.value = currentRole; // Reset selection
+        console.error('Error updating user:', error);
+        alert(`Failed to update user: ${error.message}`);
+        
+        // Reset selects to original values
+        roleSelect.value = currentRole;
+        approvalSelect.value = currentApproval.toString();
     } finally {
         e.target.textContent = 'Update';
         e.target.disabled = false;

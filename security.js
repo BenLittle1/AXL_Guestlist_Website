@@ -15,11 +15,21 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
         console.log('Initializing dashboard...');
         
-        // Ensure we always start with today's date
+        // Show dashboard immediately with today's date (no guest data yet)
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const dashboardContent = document.getElementById('dashboardContent');
+        
+        // Show dashboard content immediately to improve perceived loading time
+        if (loadingSpinner) {
+            loadingSpinner.style.display = 'none';
+        }
+        if (dashboardContent) {
+            dashboardContent.style.display = 'block';
+        }
+        
+        // Set current date and render UI immediately
         currentDate = new Date();
-        // Reset time to midnight to avoid any time-based issues
         currentDate.setHours(0, 0, 0, 0);
-        console.log('Current date set to:', currentDate);
         
         // Check if DOM elements exist
         if (!currentDateEl) {
@@ -27,21 +37,49 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
         
+        // Initialize UI components immediately (non-async)
         initializeDateNavigation();
         initializeNavigation();
-        checkAuthenticationStatus();
-        
-        // Load guests from Supabase to ensure current state
-        await loadGuestsFromSupabase();
-        
-        updateDashboard();
+        updateDashboard(); // Show empty dashboard immediately
         initializeRealTimeSync();
+        
+        // Run authentication and data loading in parallel
+        const authPromise = checkQuickAuth();
+        const guestsPromise = loadGuestsFromSupabase();
+        const statusPromise = checkAuthenticationStatus();
+        
+        // Wait for auth check first (fastest operation)
+        const user = await authPromise;
+        if (!user) {
+            console.log('User not authenticated, redirecting to login...');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        // Wait for remaining operations
+        await Promise.all([guestsPromise, statusPromise]);
+        
+        // Update dashboard with loaded data
+        updateDashboard();
         
         console.log('Dashboard initialized successfully');
     } catch (error) {
         console.error('Error initializing dashboard:', error);
+        // On error, redirect to login page
+        window.location.href = 'login.html';
     }
 });
+
+// Quick authentication check (faster than full profile lookup)
+async function checkQuickAuth() {
+    try {
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
+        return user;
+    } catch (error) {
+        console.error('Quick auth check failed:', error);
+        return null;
+    }
+}
 
 // Date navigation functionality
 function initializeDateNavigation() {
@@ -62,33 +100,43 @@ function initializeNavigation() {
         // Check if already authenticated with Supabase
         const { data: { user } } = await window.supabaseClient.auth.getUser();
         if (user) {
-            // Check user role - try profiles table first, then fallback to user_metadata
+            // Check user role and approval status
             let userRole = 'user';
+            let isApproved = false;
             
             try {
                 const { data: profile } = await window.supabaseClient
                     .from('profiles')
-                    .select('access_level')
+                    .select('access_level, approved')
                     .eq('id', user.id)
                     .single();
                 
                 if (profile) {
                     userRole = profile.access_level || 'user';
+                    isApproved = profile.approved || false;
                 } else {
                     // Fallback to auth metadata
                     userRole = user.user_metadata?.access_level || 'user';
+                    isApproved = false;
                 }
             } catch (profileError) {
                 console.log('Could not fetch profile, using auth metadata:', profileError);
                 // Fallback to auth metadata
                 userRole = user.user_metadata?.access_level || 'user';
+                isApproved = false;
             }
             
-            // Allow admin and manager to access admin panel
-            if (userRole === 'admin' || userRole === 'manager') {
+            // Check if user is approved
+            if (!isApproved) {
+                window.location.href = 'pending-approval.html';
+                return;
+            }
+            
+            // Allow approved admin and user to access guest dashboard (guest management)
+            if (userRole === 'admin' || userRole === 'user') {
                 window.location.href = 'admin.html';
             } else {
-                alert('Access denied. This user account only has access to the security dashboard.');
+                alert('Access denied. Please contact your administrator.');
             }
             return;
         }
@@ -110,33 +158,37 @@ async function checkAuthenticationStatus() {
             // User is logged in, show logout button
             logoutBtn.style.display = 'inline-block';
             
-            // Check user role to determine admin button visibility
+            // Check user role and approval status to determine admin button visibility
             let userRole = 'user';
+            let isApproved = false;
             
             try {
                 const { data: profile } = await window.supabaseClient
                     .from('profiles')
-                    .select('access_level')
+                    .select('access_level, approved')
                     .eq('id', user.id)
                     .single();
                 
                 if (profile) {
                     userRole = profile.access_level || 'user';
+                    isApproved = profile.approved || false;
                 } else {
                     // Fallback to auth metadata
                     userRole = user.user_metadata?.access_level || 'user';
+                    isApproved = false;
                 }
             } catch (profileError) {
                 console.log('Could not fetch profile for button visibility, using auth metadata:', profileError);
                 // Fallback to auth metadata
                 userRole = user.user_metadata?.access_level || 'user';
+                isApproved = false;
             }
             
-            // Show admin button only for admin and manager users
-            if (userRole === 'admin' || userRole === 'manager') {
+            // Show admin button only for approved admin and user accounts
+            if (isApproved && (userRole === 'admin' || userRole === 'user')) {
                 adminBtn.style.display = 'inline-block';
             } else {
-                // Hide admin button for regular users
+                // Hide admin button for unapproved users
                 adminBtn.style.display = 'none';
             }
         } else {
@@ -369,28 +421,25 @@ function renderGuestList(guestList) {
         return;
     }
     
-    const table = document.createElement('table');
-    table.className = 'guest-table';
+    const dateKey = formatDateKey(currentDate);
     
-    // Table header
-    const thead = document.createElement('thead');
-    thead.innerHTML = `
-        <tr>
-            <th>STATUS</th>
-            <th>GUEST NAME</th>
-            <th>ORGANIZATION</th>
-            <th>ESTIMATED ARRIVAL</th>
-            <th>GUEST OF</th>
-            <th>FLOOR ACCESS</th>
-        </tr>
-    `;
-    table.appendChild(thead);
+    // Build table HTML as string for faster rendering
+    let tableHTML = `
+        <table class="guest-table">
+            <thead>
+                <tr>
+                    <th>ARRIVED</th>
+                    <th>GUEST NAME</th>
+                    <th>ORGANIZATION</th>
+                    <th>ESTIMATED ARRIVAL</th>
+                    <th>GUEST OF</th>
+                    <th>FLOOR ACCESS</th>
+                </tr>
+            </thead>
+            <tbody>`;
     
-    // Table body
-    const tbody = document.createElement('tbody');
+    // Build all rows as HTML string
     guestList.forEach((guest, index) => {
-        const row = document.createElement('tr');
-        
         // Handle both old single floor format and new multi-floor format
         const floorsDisplay = Array.isArray(guest.floors) 
             ? guest.floors.join(', ') 
@@ -400,35 +449,59 @@ function renderGuestList(guestList) {
         const organizationDisplay = guest.organization || 'N/A';
         
         // Arrival time display
-        const arrivalTime = guest.estimatedArrival || 'Not specified';
+        const arrivalTime = guest.estimatedArrival ? formatTimeWithoutSeconds(guest.estimatedArrival) : 'Not specified';
         
         // Guest of display
         const guestOfDisplay = guest.guestOf || 'Unknown';
         
         // Check-in checkbox with unique ID
-        const dateKey = formatDateKey(currentDate);
         const checkboxId = `checkin-${dateKey}-${index}`;
         const isChecked = guest.checkedIn ? 'checked' : '';
         
-        row.innerHTML = `
-            <td><input type="checkbox" id="${checkboxId}" class="checkin-checkbox" ${isChecked} onchange="handleCheckInChange('${dateKey}', ${index}, this.checked)"></td>
-            <td>${escapeHtml(guest.name)}</td>
-            <td>${escapeHtml(organizationDisplay)}</td>
-            <td>${arrivalTime}</td>
-            <td>${escapeHtml(guestOfDisplay)}</td>
-            <td>${floorsDisplay}</td>
-        `;
-        tbody.appendChild(row);
+        tableHTML += `
+            <tr>
+                <td><input type="checkbox" id="${checkboxId}" class="checkin-checkbox" ${isChecked} data-date-key="${dateKey}" data-guest-index="${index}"></td>
+                <td>${escapeHtml(guest.name)}</td>
+                <td>${escapeHtml(organizationDisplay)}</td>
+                <td>${arrivalTime}</td>
+                <td>${escapeHtml(guestOfDisplay)}</td>
+                <td>${floorsDisplay}</td>
+            </tr>`;
     });
-    table.appendChild(tbody);
     
-    guestListEl.innerHTML = '';
-    guestListEl.appendChild(table);
+    tableHTML += `</tbody></table>`;
+    
+    // Set all HTML at once (much faster than appendChild)
+    guestListEl.innerHTML = tableHTML;
+    
+    // Add event listeners only to checkboxes
+    const checkboxes = guestListEl.querySelectorAll('.checkin-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const dateKey = this.getAttribute('data-date-key');
+            const guestIndex = parseInt(this.getAttribute('data-guest-index'));
+            handleCheckInChange(dateKey, guestIndex, this.checked);
+        });
+    });
 }
 
 // Utility functions
 function formatDateKey(date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatTimeWithoutSeconds(timeString) {
+    if (!timeString) return timeString;
+    
+    // If the time string includes seconds (HH:MM:SS), remove them
+    if (timeString.includes(':')) {
+        const parts = timeString.split(':');
+        if (parts.length >= 2) {
+            return `${parts[0]}:${parts[1]}`;
+        }
+    }
+    
+    return timeString;
 }
 
 function escapeHtml(text) {

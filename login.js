@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
 async function checkAuthStatus() {
     const { data: { user } } = await window.supabaseClient.auth.getUser();
     if (user) {
-        window.location.href = 'admin.html';
+        window.location.href = 'index.html';
         return;
     }
 }
@@ -89,16 +89,42 @@ async function handleLogin(e) {
             throw new Error('Invalid email or password.');
         }
 
-        // Check user role and redirect accordingly
+        // Check user role and approval status
         const user = authResult.data.user;
-        const userRole = user.user_metadata?.access_level || 'user';
         
-        if (userRole === 'admin' || userRole === 'manager') {
-            window.location.href = 'admin.html';
-        } else {
-            // Regular users go to security dashboard
-            window.location.href = 'index.html';
+        // Check approval status from profiles table
+        let userRole = 'user';
+        let isApproved = false;
+        
+        try {
+            const { data: profile } = await window.supabaseClient
+                .from('profiles')
+                .select('access_level, approved')
+                .eq('id', user.id)
+                .single();
+            
+            if (profile) {
+                userRole = profile.access_level || 'user';
+                isApproved = profile.approved || false;
+            } else {
+                // Fallback to auth metadata
+                userRole = user.user_metadata?.access_level || 'user';
+                isApproved = false;
+            }
+        } catch (error) {
+            console.log('Could not fetch profile, using auth metadata:', error);
+            userRole = user.user_metadata?.access_level || 'user';
+            isApproved = false;
         }
+        
+        // Check if user is approved
+        if (!isApproved) {
+            window.location.href = 'pending-approval.html';
+            return;
+        }
+        
+        // Redirect approved users to security dashboard
+        window.location.href = 'index.html';
 
     } catch (err) {
         // Show error

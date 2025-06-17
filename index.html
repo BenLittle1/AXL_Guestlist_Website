@@ -11,13 +11,20 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
 </head>
-<body>
-    <div class="container">
+<body style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%); background-attachment: fixed;">
+    <!-- Loading Spinner (shown initially) -->
+    <div id="loadingSpinner" class="loading-container">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Checking authentication...</p>
+    </div>
+
+    <!-- Main Dashboard Content (shown immediately for faster perceived loading) -->
+    <div id="dashboardContent" class="container">
         <!-- Security Dashboard Header -->
         <div class="page-header">
             <h1 class="page-title">AXL SECURITY DASHBOARD</h1>
             <div class="page-navigation">
-                <button id="adminBtn" class="nav-link">ADMIN PANEL</button>
+                <button id="adminBtn" class="nav-link">GUEST DASHBOARD</button>
                 <button id="logoutBtn" class="nav-link logout-btn" style="display: none;">LOGOUT</button>
             </div>
         </div>

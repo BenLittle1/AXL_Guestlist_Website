@@ -3,6 +3,11 @@ let currentDate = new Date();
 let selectedDate = null;
 let guests = {}; // Will be loaded from Supabase
 
+// Multi-day calendar state
+let miniCalendarDate = new Date();
+let additionalSelectedDates = new Set(); // Set of date strings (YYYY-MM-DD)
+let isMultiDayCalendarOpen = false;
+
 // DOM elements
 const calendarGrid = document.getElementById('calendarGrid');
 const monthYearEl = document.getElementById('monthYear');
@@ -24,15 +29,39 @@ const userManagementBtn = document.getElementById('userManagementBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const currentUserEl = document.getElementById('currentUser');
 
+// Multi-day calendar DOM elements
+const toggleMultiDayCalendarBtn = document.getElementById('toggleMultiDayCalendar');
+const toggleIcon = document.getElementById('toggleIcon');
+const selectedDatesDisplay = document.getElementById('selectedDatesDisplay');
+const multiDayCalendar = document.getElementById('multiDayCalendar');
+const miniCalendarGrid = document.getElementById('miniCalendarGrid');
+const miniMonthYearEl = document.getElementById('miniMonthYear');
+const miniPrevMonthBtn = document.getElementById('miniPrevMonth');
+const miniNextMonthBtn = document.getElementById('miniNextMonth');
+const clearDatesBtn = document.getElementById('clearDates');
+const confirmDatesBtn = document.getElementById('confirmDates');
+
 // Initialize the application
 document.addEventListener('DOMContentLoaded', async function() {
-    await checkAuthentication();
-    await displayCurrentUser();
-    await setupRoleBasedUI();
-    initializeNavigation();
-    await loadGuestsData();
+    // Show calendar immediately with current date (no guest data yet)
     renderCalendar();
+    
+    // Run async operations in parallel for faster loading
+    const authPromise = checkAuthentication();
+    const userPromise = displayCurrentUser();
+    const rolePromise = setupRoleBasedUI();
+    const guestsPromise = loadGuestsData();
+    
+    // Initialize non-async components immediately
+    initializeNavigation();
     initializePanel();
+    initializeMultiDayCalendar();
+    
+    // Wait for all async operations to complete
+    await Promise.all([authPromise, userPromise, rolePromise, guestsPromise]);
+    
+    // Re-render calendar with guest data
+    renderCalendar();
 });
 
 // Authentication check
@@ -43,31 +72,43 @@ async function checkAuthentication() {
         return;
     }
     
-    // Check if user has admin or manager permissions - try profiles table first
+    // Check if user has appropriate permissions and is approved
     let userRole = 'user';
+    let isApproved = false;
     
     try {
         const { data: profile } = await window.supabaseClient
             .from('profiles')
-            .select('access_level')
+            .select('access_level, approved')
             .eq('id', user.id)
             .single();
         
         if (profile) {
             userRole = profile.access_level || 'user';
+            isApproved = profile.approved || false;
         } else {
             // Fallback to auth metadata
             userRole = user.user_metadata?.access_level || 'user';
+            // If no profile, user is likely unapproved
+            isApproved = false;
         }
     } catch (profileError) {
         console.log('Could not fetch profile for auth check, using auth metadata:', profileError);
         // Fallback to auth metadata
         userRole = user.user_metadata?.access_level || 'user';
+        isApproved = false; // Assume unapproved if we can't check
     }
     
-    if (userRole !== 'admin' && userRole !== 'manager') {
-        alert('Access denied. Admin or Manager privileges required.');
-        window.location.href = 'index.html';
+    // Check if user is approved
+    if (!isApproved) {
+        window.location.href = 'pending-approval.html';
+        return;
+    }
+    
+    // Users now have guest management access, admins have full access
+    if (userRole !== 'admin' && userRole !== 'user') {
+        alert('Access denied. User account required.');
+        window.location.href = 'pending-approval.html';
         return;
     }
 }
@@ -83,7 +124,7 @@ async function setupRoleBasedUI() {
     try {
         const { data: profile } = await window.supabaseClient
             .from('profiles')
-            .select('access_level')
+            .select('access_level, approved')
             .eq('id', user.id)
             .single();
         
@@ -112,14 +153,12 @@ async function setupRoleBasedUI() {
             roleInfoEl.style.display = 'none';
         }
     } else {
-        // Manager/Other: Hide USER MANAGEMENT button completely
+        // Users: Hide USER MANAGEMENT button completely, no role info needed
         if (userManagementBtn) {
             userManagementBtn.style.display = 'none';
         }
-        
-        // Show role info for managers
-        if (userRole === 'manager' && roleInfoEl) {
-            roleInfoEl.style.display = 'block';
+        if (roleInfoEl) {
+            roleInfoEl.style.display = 'none';
         }
     }
 }
@@ -157,9 +196,9 @@ async function displayCurrentUser() {
         const pageTitleEl = document.querySelector('.page-title');
         if (pageTitleEl) {
             if (userRole === 'admin') {
-                pageTitleEl.textContent = 'ADMIN PANEL';
-            } else if (userRole === 'manager') {
-                pageTitleEl.textContent = 'MANAGER PANEL';
+                pageTitleEl.textContent = 'GUEST DASHBOARD';
+            } else {
+                pageTitleEl.textContent = 'GUEST MANAGEMENT';
             }
         }
     }
@@ -179,24 +218,33 @@ function initializeNavigation() {
             
             // Get user role - try profiles table first, then fallback to user_metadata
             let userRole = 'user';
+            let isApproved = false;
             
             try {
                 const { data: profile } = await window.supabaseClient
                     .from('profiles')
-                    .select('access_level')
+                    .select('access_level, approved')
                     .eq('id', user.id)
                     .single();
                 
                 if (profile) {
                     userRole = profile.access_level || 'user';
+                    isApproved = profile.approved || false;
                 } else {
                     // Fallback to auth metadata
                     userRole = user?.user_metadata?.access_level || 'user';
+                    isApproved = false;
                 }
             } catch (profileError) {
                 console.log('Could not fetch profile for navigation check, using auth metadata:', profileError);
                 // Fallback to auth metadata
                 userRole = user?.user_metadata?.access_level || 'user';
+                isApproved = false;
+            }
+            
+            if (!isApproved) {
+                window.location.href = 'pending-approval.html';
+                return;
             }
             
             if (userRole === 'admin') {
@@ -468,8 +516,6 @@ function updateMonthYear() {
 }
 
 function renderCalendarGrid() {
-    calendarGrid.innerHTML = '';
-    
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
     const today = new Date();
@@ -480,46 +526,56 @@ function renderCalendarGrid() {
     const daysInMonth = lastDay.getDate();
     const startingDayOfWeek = firstDay.getDay();
     
+    // Build calendar HTML as string for faster rendering
+    let calendarHTML = '';
+    
     // Add previous month's trailing days
     const prevMonth = new Date(year, month, 0);
     const daysInPrevMonth = prevMonth.getDate();
     
     for (let i = startingDayOfWeek - 1; i >= 0; i--) {
         const dayNum = daysInPrevMonth - i;
-        const dayEl = createCalendarDay(dayNum, true);
-        calendarGrid.appendChild(dayEl);
+        calendarHTML += `<div class="calendar-day other-month">${dayNum}</div>`;
     }
     
     // Add current month's days
     for (let day = 1; day <= daysInMonth; day++) {
-        const dayEl = createCalendarDay(day, false);
         const dayDate = new Date(year, month, day);
+        const dateKey = formatDateKey(dayDate);
+        
+        let classes = 'calendar-day';
         
         // Mark today
         if (isSameDay(dayDate, today)) {
-            dayEl.classList.add('today');
+            classes += ' today';
         }
         
         // Mark days with guests
-        const dateKey = formatDateKey(dayDate);
         if (guests[dateKey] && guests[dateKey].length > 0) {
-            dayEl.classList.add('has-guests');
+            classes += ' has-guests';
         }
         
-        // Add click handler
-        dayEl.addEventListener('click', () => openGuestPanel(dayDate));
-        
-        calendarGrid.appendChild(dayEl);
+        calendarHTML += `<div class="${classes}" data-date="${dateKey}">${day}</div>`;
     }
     
     // Add next month's leading days
-    const totalCells = calendarGrid.children.length;
-    const remainingCells = 42 - totalCells; // 6 rows × 7 days
+    const currentCells = startingDayOfWeek + daysInMonth;
+    const remainingCells = 42 - currentCells; // 6 rows × 7 days
     
     for (let day = 1; day <= remainingCells; day++) {
-        const dayEl = createCalendarDay(day, true);
-        calendarGrid.appendChild(dayEl);
+        calendarHTML += `<div class="calendar-day other-month">${day}</div>`;
     }
+    
+    // Set all HTML at once (much faster than appendChild)
+    calendarGrid.innerHTML = calendarHTML;
+    
+    // Add click handlers only to current month days
+    const currentMonthDays = calendarGrid.querySelectorAll('.calendar-day:not(.other-month)');
+    currentMonthDays.forEach(dayEl => {
+        const dateKey = dayEl.getAttribute('data-date');
+        const date = new Date(dateKey + 'T00:00:00');
+        dayEl.addEventListener('click', () => openGuestPanel(date));
+    });
 }
 
 function createCalendarDay(dayNum, isOtherMonth) {
@@ -540,11 +596,188 @@ function isSameDay(date1, date2) {
            date1.getDate() === date2.getDate();
 }
 
+// Multi-day calendar functionality
+function initializeMultiDayCalendar() {
+    // Toggle multi-day calendar visibility
+    toggleMultiDayCalendarBtn.addEventListener('click', toggleMultiDayCalendar);
+    
+    // Mini calendar navigation
+    miniPrevMonthBtn.addEventListener('click', () => {
+        miniCalendarDate.setMonth(miniCalendarDate.getMonth() - 1);
+        renderMiniCalendar();
+    });
+    
+    miniNextMonthBtn.addEventListener('click', () => {
+        miniCalendarDate.setMonth(miniCalendarDate.getMonth() + 1);
+        renderMiniCalendar();
+    });
+    
+    // Action buttons
+    clearDatesBtn.addEventListener('click', clearAllSelectedDates);
+    confirmDatesBtn.addEventListener('click', confirmDateSelection);
+    
+    // Initialize mini calendar and display
+    renderMiniCalendar();
+    updateSelectedDatesDisplay();
+}
+
+function toggleMultiDayCalendar() {
+    isMultiDayCalendarOpen = !isMultiDayCalendarOpen;
+    
+    if (isMultiDayCalendarOpen) {
+        multiDayCalendar.classList.remove('hidden');
+        toggleMultiDayCalendarBtn.classList.add('expanded');
+        toggleIcon.textContent = '×';
+        // Reset mini calendar to current month when opening
+        miniCalendarDate = new Date(selectedDate || new Date());
+        renderMiniCalendar();
+    } else {
+        multiDayCalendar.classList.add('hidden');
+        toggleMultiDayCalendarBtn.classList.remove('expanded');
+        toggleIcon.textContent = '+';
+    }
+}
+
+function renderMiniCalendar() {
+    updateMiniMonthYear();
+    renderMiniCalendarGrid();
+}
+
+function updateMiniMonthYear() {
+    const months = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE',
+                   'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+    
+    const monthName = months[miniCalendarDate.getMonth()];
+    const year = miniCalendarDate.getFullYear();
+    miniMonthYearEl.textContent = `${monthName} ${year}`;
+}
+
+function renderMiniCalendarGrid() {
+    miniCalendarGrid.innerHTML = '';
+    
+    const year = miniCalendarDate.getFullYear();
+    const month = miniCalendarDate.getMonth();
+    const today = new Date();
+    
+    // Get first day of month and number of days
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    // Add previous month's trailing days
+    const prevMonth = new Date(year, month, 0);
+    const daysInPrevMonth = prevMonth.getDate();
+    
+    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+        const dayNum = daysInPrevMonth - i;
+        const dayEl = createMiniCalendarDay(dayNum, true);
+        miniCalendarGrid.appendChild(dayEl);
+    }
+    
+    // Add current month's days
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayEl = createMiniCalendarDay(day, false);
+        const dayDate = new Date(year, month, day);
+        const dateKey = formatDateKey(dayDate);
+        
+        // Mark the primary date (the date that was clicked to open the panel)
+        if (selectedDate && isSameDay(dayDate, selectedDate)) {
+            dayEl.classList.add('primary-date');
+        }
+        
+        // Mark selected additional dates
+        if (additionalSelectedDates.has(dateKey)) {
+            dayEl.classList.add('selected');
+        }
+        
+        // Disable past dates
+        if (dayDate < today.setHours(0, 0, 0, 0)) {
+            dayEl.classList.add('disabled');
+        } else {
+            // Add click handler for future dates
+            dayEl.addEventListener('click', () => toggleDateSelection(dayDate, dayEl));
+        }
+        
+        miniCalendarGrid.appendChild(dayEl);
+    }
+    
+    // Add next month's leading days
+    const totalCells = miniCalendarGrid.children.length;
+    const remainingCells = 42 - totalCells; // 6 rows × 7 days
+    
+    for (let day = 1; day <= remainingCells; day++) {
+        const dayEl = createMiniCalendarDay(day, true);
+        miniCalendarGrid.appendChild(dayEl);
+    }
+}
+
+function createMiniCalendarDay(dayNum, isOtherMonth) {
+    const dayEl = document.createElement('div');
+    dayEl.className = 'mini-calendar-day';
+    dayEl.textContent = dayNum;
+    
+    if (isOtherMonth) {
+        dayEl.classList.add('other-month');
+    }
+    
+    return dayEl;
+}
+
+function toggleDateSelection(date, dayEl) {
+    const dateKey = formatDateKey(date);
+    
+    // Don't allow selecting the primary date (it's already selected)
+    if (selectedDate && isSameDay(date, selectedDate)) {
+        return;
+    }
+    
+    if (additionalSelectedDates.has(dateKey)) {
+        additionalSelectedDates.delete(dateKey);
+        dayEl.classList.remove('selected');
+    } else {
+        additionalSelectedDates.add(dateKey);
+        dayEl.classList.add('selected');
+    }
+    
+    updateSelectedDatesDisplay();
+}
+
+function updateSelectedDatesDisplay() {
+    if (additionalSelectedDates.size === 0) {
+        selectedDatesDisplay.innerHTML = '<em style="color: #64748b; font-size: 13px;">No additional dates selected</em>';
+        return;
+    }
+    
+    const dateArray = Array.from(additionalSelectedDates).sort();
+    const tags = dateArray.map(dateStr => {
+        const date = new Date(dateStr + 'T00:00:00');
+        const formatted = date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric' 
+        });
+        return `<span class="selected-date-tag">${formatted}</span>`;
+    }).join('');
+    
+    selectedDatesDisplay.innerHTML = tags;
+}
+
+function clearAllSelectedDates() {
+    additionalSelectedDates.clear();
+    updateSelectedDatesDisplay();
+    renderMiniCalendar();
+}
+
+function confirmDateSelection() {
+    toggleMultiDayCalendar(); // Close the calendar
+}
+
 // Panel functionality
 function initializePanel() {
     // Clear form when cancel button is clicked
     cancelBtn.addEventListener('click', () => {
         guestForm.reset();
+        clearAllSelectedDates(); // Also clear selected dates
     });
     
     // Close panel when close button is clicked
@@ -570,8 +803,13 @@ function openGuestPanel(date) {
     // Show existing guests for this date
     displayExistingGuests(date);
     
-    // Reset form
+    // Reset form and clear additional dates
     guestForm.reset();
+    clearAllSelectedDates();
+    
+    // Initialize mini calendar to the selected date's month
+    miniCalendarDate = new Date(date);
+    renderMiniCalendar();
     
     // Show panel with smooth animation
     guestPanel.classList.remove('hidden');
@@ -587,6 +825,11 @@ function closeGuestPanel() {
     guestPanel.classList.add('hidden');
     selectedDate = null;
     guestForm.reset();
+    clearAllSelectedDates(); // Clear additional selected dates
+    // Close multi-day calendar if open
+    if (isMultiDayCalendarOpen) {
+        toggleMultiDayCalendar();
+    }
 }
 
 function formatPanelDate(date) {
@@ -631,36 +874,67 @@ async function handleGuestSubmit(e) {
         submitBtn.textContent = 'Saving...';
         submitBtn.disabled = true;
         
-        // Save to Supabase
-        const dateKey = formatDateKey(selectedDate);
-        const savedGuest = await saveGuestToSupabase(guestName, guestOrganization, estimatedArrival, floors, dateKey);
-        
-        // Add to local data
-        if (!guests[dateKey]) {
-            guests[dateKey] = [];
-        }
-        
-        guests[dateKey].push({
-            id: savedGuest.id, // Store Supabase ID
-            name: guestName,
-            organization: guestOrganization,
-            estimatedArrival: estimatedArrival,
-            checkedIn: false,
-            floors: floors,
-            timestamp: savedGuest.created_at
+        // Collect all dates to create guests for
+        const datesToCreate = [selectedDate]; // Primary date
+        additionalSelectedDates.forEach(dateStr => {
+            const additionalDate = new Date(dateStr + 'T00:00:00');
+            datesToCreate.push(additionalDate);
         });
+        
+        // Create guests for all selected dates
+        const savedGuests = [];
+        for (const date of datesToCreate) {
+            const dateKey = formatDateKey(date);
+            
+            try {
+                const savedGuest = await saveGuestToSupabase(guestName, guestOrganization, estimatedArrival, floors, dateKey);
+                
+                // Add to local data
+                if (!guests[dateKey]) {
+                    guests[dateKey] = [];
+                }
+                
+                guests[dateKey].push({
+                    id: savedGuest.id, // Store Supabase ID
+                    name: guestName,
+                    organization: guestOrganization,
+                    estimatedArrival: estimatedArrival,
+                    checkedIn: false,
+                    floors: floors,
+                    timestamp: savedGuest.created_at
+                });
+                
+                savedGuests.push({ date: dateKey, guest: savedGuest });
+            } catch (error) {
+                console.error(`Error saving guest for date ${dateKey}:`, error);
+                // Continue with other dates even if one fails
+            }
+        }
         
         // Also save to localStorage as backup
         localStorage.setItem('guestData', JSON.stringify(guests));
         
-        // Update the modal to show new guest
+        // Update the modal to show new guest for the primary date
         displayExistingGuests(selectedDate);
         
-        // Reset form but keep modal open
+        // Reset form and clear additional dates
         guestForm.reset();
+        clearAllSelectedDates();
         
-        // Update calendar
+        // Update calendar to show guest indicators
         renderCalendar();
+        
+        // Handle results silently for success, show errors only
+        const totalDates = datesToCreate.length;
+        const successCount = savedGuests.length;
+        
+        if (successCount === 0) {
+            throw new Error('Failed to save guest for any selected dates');
+        } else if (successCount < totalDates) {
+            // Only show alert if some dates failed - this is important user feedback
+            alert(`Guest "${guestName}" added for ${successCount} out of ${totalDates} dates. Some dates may have failed.`);
+        }
+        // For full success (including multi-day), proceed silently
         
         // Restore button state
         submitBtn.textContent = originalText;
@@ -691,7 +965,7 @@ function displayExistingGuests(date) {
                 : guest.floor || guest.floors; // Backward compatibility
             
             // Format arrival time
-            const arrivalTime = guest.estimatedArrival ? guest.estimatedArrival : 'Not specified';
+            const arrivalTime = guest.estimatedArrival ? formatTimeWithoutSeconds(guest.estimatedArrival) : 'Not specified';
             
             // Organization display
             const organizationDisplay = guest.organization ? `<div class="guest-organization">Organization: ${escapeHtml(guest.organization)}</div>` : '';
@@ -857,6 +1131,20 @@ function escapeHtml(text) {
 // Utility functions
 function formatDateKey(date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function formatTimeWithoutSeconds(timeString) {
+    if (!timeString) return timeString;
+    
+    // If the time string includes seconds (HH:MM:SS), remove them
+    if (timeString.includes(':')) {
+        const parts = timeString.split(':');
+        if (parts.length >= 2) {
+            return `${parts[0]}:${parts[1]}`;
+        }
+    }
+    
+    return timeString;
 }
 
 // Make toggleCheckIn available globally for onclick handlers
