@@ -1,41 +1,81 @@
 const nodemailer = require('nodemailer');
 
-// Create email transporter
-const createTransporter = () => {
-    // Debug logging
-    console.log('🔍 Email Config Debug:');
-    console.log('EMAIL_USER:', process.env.EMAIL_USER ? '✅ Set' : '❌ Missing');
-    console.log('EMAIL_PASS:', process.env.EMAIL_PASS ? '✅ Set' : '❌ Missing');
-    console.log('EMAIL_HOST:', process.env.EMAIL_HOST ? '✅ Set' : '❌ Missing');
-    console.log('EMAIL_PORT:', process.env.EMAIL_PORT ? '✅ Set' : '❌ Missing');
+// Comprehensive environment variable debugging
+const debugEmailConfig = () => {
+    console.log('==========================================');
+    console.log('🔍 COMPLETE EMAIL ENVIRONMENT DEBUG');
+    console.log('==========================================');
+    console.log('ALL Environment Variables:');
     
-    // Use custom SMTP config instead of service
-    const emailConfig = {
-        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port: process.env.EMAIL_PORT || 587,
-        secure: false, // true for 465, false for other ports
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD
-        }
+    // Check all email-related environment variables
+    const emailVars = [
+        'EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASS', 
+        'EMAIL_PASSWORD', 'EMAIL_FROM', 'EMAIL_SERVICE'
+    ];
+    
+    emailVars.forEach(varName => {
+        const value = process.env[varName];
+        console.log(`${varName}: ${value ? '✅ SET (' + value.substring(0, 5) + '...)' : '❌ MISSING'}`);
+    });
+    
+    console.log('==========================================');
+    
+    return {
+        host: process.env.EMAIL_HOST,
+        port: process.env.EMAIL_PORT,
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS || process.env.EMAIL_PASSWORD,
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER
     };
-
-    // Fallback for development/testing - use ethereal email
-    if (!process.env.EMAIL_USER || (!process.env.EMAIL_PASS && !process.env.EMAIL_PASSWORD)) {
-        console.warn('⚠️ Email credentials not configured. Using test account.');
-        return null; // Will be handled in createTestAccount
-    }
-
-    console.log('✅ Using Gmail SMTP with configured credentials');
-    return nodemailer.createTransport(emailConfig);
 };
 
-// Create test account for development
+// Create email transporter with bulletproof logic
+const createTransporter = () => {
+    const config = debugEmailConfig();
+    
+    // FORCE Gmail SMTP configuration
+    const hasRequiredVars = config.user && config.pass;
+    
+    if (hasRequiredVars) {
+        console.log('✅ USING GMAIL SMTP - All required variables found');
+        
+        const gmailConfig = {
+            host: 'smtp.gmail.com',
+            port: 587,
+            secure: false,
+            auth: {
+                user: config.user,
+                pass: config.pass
+            },
+            // Add additional Gmail-specific options
+            tls: {
+                rejectUnauthorized: false
+            }
+        };
+        
+        console.log('Gmail Config:', {
+            host: gmailConfig.host,
+            port: gmailConfig.port,
+            user: gmailConfig.auth.user,
+            passLength: gmailConfig.auth.pass ? gmailConfig.auth.pass.length : 0
+        });
+        
+        return nodemailer.createTransporter(gmailConfig);
+    } else {
+        console.log('❌ MISSING EMAIL VARIABLES - Using test email');
+        console.log('Required: EMAIL_USER and EMAIL_PASS');
+        console.log('Found USER:', !!config.user);
+        console.log('Found PASS:', !!config.pass);
+        return null;
+    }
+};
+
+// Create test transporter
 const createTestTransporter = async () => {
+    console.log('⚠️ Creating test email transporter (ethereal.email)');
     try {
         const testAccount = await nodemailer.createTestAccount();
-        
-        return nodemailer.createTransport({
+        return nodemailer.createTransporter({
             host: 'smtp.ethereal.email',
             port: 587,
             secure: false,
@@ -46,21 +86,26 @@ const createTestTransporter = async () => {
         });
     } catch (error) {
         console.error('Failed to create test email account:', error);
-        return null;
+        throw new Error('Failed to create email transporter');
     }
 };
 
 // Send guest arrival notification email
 const sendGuestArrivalNotification = async (guestDetails, creatorDetails) => {
     try {
-        let transporter = createTransporter();
+        console.log('🚀 Starting email send process...');
         
-        // Use test account if no real email configured
+        let transporter = createTransporter();
+        let isTestEmail = false;
+        
         if (!transporter) {
+            console.log('🔄 Falling back to test email...');
             transporter = await createTestTransporter();
-            if (!transporter) {
-                throw new Error('Failed to create email transporter');
-            }
+            isTestEmail = true;
+        }
+
+        if (!transporter) {
+            throw new Error('Failed to create any email transporter');
         }
 
         // Format the arrival time
@@ -166,32 +211,43 @@ const sendGuestArrivalNotification = async (guestDetails, creatorDetails) => {
         `;
 
         // Email options
+        const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@axl-guestlist.com';
+        
         const mailOptions = {
-            from: process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@axl-guestlist.com',
+            from: fromEmail,
             to: creatorDetails.email,
             subject: subject,
             text: textContent,
             html: htmlContent
         };
 
+        console.log('📧 Sending email with options:', {
+            from: fromEmail,
+            to: creatorDetails.email,
+            subject: subject,
+            isTestEmail: isTestEmail
+        });
+
         // Send email
         const info = await transporter.sendMail(mailOptions);
         
-        console.log('✅ Guest arrival notification sent:', {
+        if (isTestEmail) {
+            console.log('📧 TEST EMAIL sent - Preview: ' + nodemailer.getTestMessageUrl(info));
+        } else {
+            console.log('✅ REAL EMAIL sent successfully via Gmail SMTP');
+        }
+        
+        console.log('Email info:', {
             messageId: info.messageId,
             to: creatorDetails.email,
             guest: guestDetails.name
         });
 
-        // If using test account, log preview URL
-        if (nodemailer.getTestMessageUrl(info)) {
-            console.log('📧 Preview email: ' + nodemailer.getTestMessageUrl(info));
-        }
-
         return {
             success: true,
             messageId: info.messageId,
-            previewUrl: nodemailer.getTestMessageUrl(info) || null
+            previewUrl: nodemailer.getTestMessageUrl(info) || null,
+            isTestEmail: isTestEmail
         };
 
     } catch (error) {
