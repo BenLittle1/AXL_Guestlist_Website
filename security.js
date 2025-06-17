@@ -102,20 +102,52 @@ function initializeNavigation() {
     });
 }
 
-// Check authentication status and show/hide logout button
+// Check authentication status and show/hide buttons based on user role
 async function checkAuthenticationStatus() {
     try {
         const { data: { user } } = await window.supabaseClient.auth.getUser();
         if (user) {
             // User is logged in, show logout button
             logoutBtn.style.display = 'inline-block';
+            
+            // Check user role to determine admin button visibility
+            let userRole = 'user';
+            
+            try {
+                const { data: profile } = await window.supabaseClient
+                    .from('profiles')
+                    .select('access_level')
+                    .eq('id', user.id)
+                    .single();
+                
+                if (profile) {
+                    userRole = profile.access_level || 'user';
+                } else {
+                    // Fallback to auth metadata
+                    userRole = user.user_metadata?.access_level || 'user';
+                }
+            } catch (profileError) {
+                console.log('Could not fetch profile for button visibility, using auth metadata:', profileError);
+                // Fallback to auth metadata
+                userRole = user.user_metadata?.access_level || 'user';
+            }
+            
+            // Show admin button only for admin and manager users
+            if (userRole === 'admin' || userRole === 'manager') {
+                adminBtn.style.display = 'inline-block';
+            } else {
+                // Hide admin button for regular users
+                adminBtn.style.display = 'none';
+            }
         } else {
-            // User is not logged in, hide logout button
+            // User is not logged in, hide logout button and show admin button (for login access)
             logoutBtn.style.display = 'none';
+            adminBtn.style.display = 'inline-block';
         }
     } catch (error) {
         console.error('Error checking authentication status:', error);
         logoutBtn.style.display = 'none';
+        adminBtn.style.display = 'inline-block';
     }
 }
 
