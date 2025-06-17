@@ -138,13 +138,13 @@ body {
     z-index: 100;
 }
 
-/* FIXED COORDINATES - 600px apart */
+/* FIXED COORDINATES - 600px apart, centered on their own centers */
 #prevDay {
-    left: calc(50% - 300px); /* 300px left of center = 600px total spacing */
+    left: calc(50% - 325px); /* Center of arrow 325px left of center (300px + 25px for button center) */
 }
 
 #nextDay {
-    left: calc(50% + 300px); /* 300px right of center = 600px total spacing */
+    left: calc(50% + 275px); /* Center of arrow 325px right of center (300px + 25px for button center) */
 }
 
 .date-nav:hover {

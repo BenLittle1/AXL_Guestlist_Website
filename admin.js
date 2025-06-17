@@ -814,11 +814,18 @@ function openGuestPanel(date) {
     // Show panel with smooth animation
     guestPanel.classList.remove('hidden');
     
-    // Scroll panel into view
+    // Smooth scroll to panel with better positioning
     setTimeout(() => {
-        guestPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        guestNameInput.focus();
-    }, 200);
+        guestPanel.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+        });
+        // Focus after scrolling animation completes
+        setTimeout(() => {
+            guestNameInput.focus();
+        }, 300);
+    }, 100);
 }
 
 function closeGuestPanel() {

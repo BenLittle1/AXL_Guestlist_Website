@@ -1,17 +1,51 @@
-// DOM elements
-const currentUserEl = document.getElementById('currentUser');
-const usersContainer = document.getElementById('usersContainer');
-const backBtn = document.getElementById('backBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-const refreshBtn = document.getElementById('refreshBtn');
+// DOM elements - using querySelector to access elements immediately
+let currentUserEl, usersContainer, backBtn, logoutBtn, refreshBtn;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async function() {
-    await checkAuth();
-    await displayCurrentUser();
+    // Get DOM elements
+    currentUserEl = document.getElementById('currentUser');
+    usersContainer = document.getElementById('usersContainer');
+    backBtn = document.getElementById('backBtn');
+    logoutBtn = document.getElementById('logoutBtn');
+    refreshBtn = document.getElementById('refreshBtn');
+    
+    // Initialize non-async components immediately
     initializeNavigation();
-    await loadUsers();
+    
+    // Run async operations in parallel for faster loading
+    const authPromise = checkAuth();
+    const userPromise = displayCurrentUser();
+    const usersPromise = loadUsers();
+    
+    // Wait for all async operations to complete
+    await Promise.all([authPromise, userPromise, usersPromise]);
 });
+
+// Render empty table structure immediately for better perceived performance
+function renderEmptyTableStructure() {
+    // Check if table already exists in HTML
+    if (usersContainer && !usersContainer.querySelector('.users-table')) {
+        usersContainer.innerHTML = `
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>NAME</th>
+                        <th>EMAIL</th>
+                        <th>ROLE</th>
+                        <th>STATUS</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="5" class="loading">Loading users...</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+    }
+}
 
 // Check authentication and admin privileges
 async function checkAuth() {
@@ -127,7 +161,11 @@ function handleEscapeKey(e) {
 async function loadUsers() {
     try {
         console.log('Loading users...');
-        usersContainer.innerHTML = '<div class="loading">Loading users...</div>';
+        // Don't replace the entire container if we already have table structure
+        const existingTable = usersContainer.querySelector('.users-table');
+        if (!existingTable) {
+            renderEmptyTableStructure();
+        }
 
         const { data: users, error } = await window.supabaseClient
             .from('profiles')
@@ -155,56 +193,92 @@ async function loadUsers() {
 
 // Display users in table
 function displayUsers(users) {
+    // Check if table already exists to avoid double animation
+    let existingTable = usersContainer.querySelector('.users-table');
+    
     if (!users || users.length === 0) {
-        usersContainer.innerHTML = `
-            <div class="no-users">
-                <h3>No Users Found</h3>
-                <p>No users have been registered yet.</p>
-            </div>
-        `;
+        if (existingTable) {
+            // Just update tbody content to avoid re-animation
+            const tbody = existingTable.querySelector('tbody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="no-users">No users have been registered yet.</td>
+                </tr>
+            `;
+        } else {
+            // Create new table if none exists
+            usersContainer.innerHTML = `
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>NAME</th>
+                            <th>EMAIL</th>
+                            <th>ROLE</th>
+                            <th>STATUS</th>
+                            <th>ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="5" class="no-users">No users have been registered yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+        }
         return;
     }
 
-    const table = `
-        <table class="users-table">
-            <thead>
-                <tr>
-                    <th>NAME</th>
-                    <th>EMAIL</th>
-                    <th>ROLE</th>
-                    <th>STATUS</th>
-                    <th>ACTIONS</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${users.map(user => `
-                    <tr>
-                        <td>${escapeHtml(user.full_name || 'N/A')}</td>
-                        <td>${escapeHtml(user.email || 'N/A')}</td>
-                        <td>
-                            <select class="role-select" data-user-id="${user.id}" data-current-role="${user.access_level || 'user'}">
-                                <option value="user" ${(user.access_level || 'user') === 'user' ? 'selected' : ''}>User</option>
-                                <option value="admin" ${user.access_level === 'admin' ? 'selected' : ''}>Admin</option>
-                            </select>
-                        </td>
-                        <td>
-                            <select class="approval-select" data-user-id="${user.id}" data-current-approval="${user.approved || false}">
-                                <option value="true" ${user.approved ? 'selected' : ''}>Approved</option>
-                                <option value="false" ${!user.approved ? 'selected' : ''}>Pending</option>
-                            </select>
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-primary update-btn" data-user-id="${user.id}">
-                                Update
-                            </button>
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
-    `;
+    // Generate rows as a single string for better performance
+    const rows = users.map(user => 
+        `<tr>
+            <td>${escapeHtml(user.full_name || 'N/A')}</td>
+            <td>${escapeHtml(user.email || 'N/A')}</td>
+            <td>
+                <select class="role-select" data-user-id="${user.id}" data-current-role="${user.access_level || 'user'}">
+                    <option value="user" ${(user.access_level || 'user') === 'user' ? 'selected' : ''}>User</option>
+                    <option value="admin" ${user.access_level === 'admin' ? 'selected' : ''}>Admin</option>
+                </select>
+            </td>
+            <td>
+                <select class="approval-select" data-user-id="${user.id}" data-current-approval="${user.approved || false}">
+                    <option value="true" ${user.approved ? 'selected' : ''}>Approved</option>
+                    <option value="false" ${!user.approved ? 'selected' : ''}>Pending</option>
+                </select>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-primary update-btn" data-user-id="${user.id}">
+                    Update
+                </button>
+            </td>
+        </tr>`
+    ).join('');
 
-    usersContainer.innerHTML = table;
+    if (existingTable) {
+        // Update only the tbody to avoid re-triggering table animation
+        const tbody = existingTable.querySelector('tbody');
+        tbody.innerHTML = rows;
+    } else {
+        // Create new table if none exists
+        const table = `
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>NAME</th>
+                        <th>EMAIL</th>
+                        <th>ROLE</th>
+                        <th>STATUS</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+        `;
+        usersContainer.innerHTML = table;
+    }
+    
     attachEventListeners();
 }
 
