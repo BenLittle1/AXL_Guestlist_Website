@@ -7,10 +7,14 @@ const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzd
 // Import Supabase from CDN
 const { createClient } = supabase;
 
-// Create both clients - one for auth/normal operations, one for admin operations
-const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-const supabaseAdminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+// Create clients only if they don't already exist (prevent multiple instances)
+if (!window.supabaseClient) {
+    // Create both clients - one for auth/normal operations, one for admin operations
+    window.supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('Created Supabase client');
+}
 
-// Export for use in other files
-window.supabaseClient = supabaseClient;
-window.supabaseAdminClient = supabaseAdminClient; 
+if (!window.supabaseAdminClient) {
+    window.supabaseAdminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    console.log('Created Supabase admin client');
+} 

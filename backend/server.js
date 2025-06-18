@@ -13,6 +13,23 @@ app.use(cors());
 // Body parser
 app.use(express.json());
 
+// Basic health check route
+app.get('/', (req, res) => {
+    res.json({ 
+        message: 'AXL Guestlist API is running', 
+        timestamp: new Date().toISOString(),
+        status: 'healthy' 
+    });
+});
+
+// Health check route
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString() 
+    });
+});
+
 // Define routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/notifications', require('./routes/notifications'));
