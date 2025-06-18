@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guest Dashboard - Guest Access Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Admin Header -->
+        <div class="page-header">
+            <h1 class="page-title">GUEST DASHBOARD</h1>
+            <div class="admin-header">
+                <div class="admin-user-info">
+                    <span>Logged in as: <span id="currentUser" class="admin-username"></span></span>
+                </div>
+                <div class="page-navigation">
+                    <button id="securityBtn" class="nav-link">SECURITY DASHBOARD</button>
+                    <button id="userManagementBtn" class="nav-link">USER MANAGEMENT</button>
+                    <button id="logoutBtn" class="logout-btn">LOGOUT</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Role Information -->
+        <div class="role-info" id="roleInfo" style="display: none;">
+            <div class="role-description">
+                <strong>User Access:</strong> You can manage guest lists and calendar entries. 
+                User management requires Admin privileges.
+            </div>
+        </div>
+
+        <!-- Admin Calendar View -->
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <button id="prevMonth" class="calendar-nav">&lt;</button>
+                <h2 id="monthYear" class="month-title"></h2>
+                <button id="nextMonth" class="calendar-nav">&gt;</button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <!-- Guest Management Panel (appears below calendar) -->
+        <div id="guestPanel" class="guest-panel hidden">
+            <div class="guest-panel-container">
+                <!-- Panel Header -->
+                <div class="panel-header">
+                    <div class="panel-title-section">
+                        <h3 id="panelTitle" class="panel-title">MANAGE GUESTS</h3>
+                        <p id="panelDate" class="panel-date"></p>
+                    </div>
+                    <button id="closePanelBtn" class="close-panel-btn">&times;</button>
+                </div>
+                
+                <div class="panel-content">
+                    <!-- Existing Guests Column -->
+                    <div class="guests-column">
+                        <div class="section-header">
+                            <h4>SCHEDULED GUESTS</h4>
+                        </div>
+                        <div id="existingGuestsList" class="guests-display"></div>
+                    </div>
+                    
+                    <!-- Add Guest Column -->
+                    <div class="form-column">
+                        <div class="section-header">
+                            <h4>ADD NEW GUEST</h4>
+                        </div>
+                        <form id="guestForm" class="guest-form">
+                            <div class="form-grid">
+                                <div class="input-group">
+                                    <label for="guestName">GUEST NAME *</label>
+                                    <input type="text" id="guestName" required>
+                                </div>
+                                <div class="input-group">
+                                    <label for="guestOrganization">ORGANIZATION</label>
+                                    <input type="text" id="guestOrganization" placeholder="Optional">
+                                </div>
+                                <div class="input-group">
+                                    <label for="estimatedArrival">ARRIVAL TIME *</label>
+                                    <input type="time" id="estimatedArrival" step="60" required>
+                                </div>
+                                <div class="input-group">
+                                    <label for="floorAccess">FLOOR ACCESS *</label>
+                                    <input type="text" id="floorAccess" placeholder="e.g., 1,3,5" required>
+                                </div>
+                                <!-- Multi-day selector -->
+                                <div class="input-group multi-day-selector">
+                                    <div class="multi-day-header">
+                                        <label>ADDITIONAL DATES</label>
+                                        <button type="button" id="toggleMultiDayCalendar" class="multi-day-toggle">
+                                            <span id="toggleIcon">+</span> Select Additional Days
+                                        </button>
+                                    </div>
+                                    <div id="selectedDatesDisplay" class="selected-dates-display"></div>
+                                    <div id="multiDayCalendar" class="multi-day-calendar hidden">
+                                        <div class="mini-calendar-header">
+                                            <button type="button" id="miniPrevMonth" class="mini-calendar-nav">&lt;</button>
+                                            <h4 id="miniMonthYear" class="mini-month-title"></h4>
+                                            <button type="button" id="miniNextMonth" class="mini-calendar-nav">&gt;</button>
+                                        </div>
+                                        <div class="mini-calendar-grid" id="miniCalendarGrid"></div>
+                                        <div class="multi-day-actions">
+                                            <button type="button" id="clearDates" class="btn-secondary-small">Clear All</button>
+                                            <button type="button" id="confirmDates" class="btn-primary-small">Confirm</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn-primary">ADD GUEST</button>
+                                <button type="button" id="cancelBtn" class="btn-secondary">CLEAR FORM</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Logout Modal -->
+    <div id="logoutModal" class="logout-modal">
+        <div class="logout-modal-content">
+            <div class="logout-modal-icon">
+                🔓
+            </div>
+            <h3 class="logout-modal-title">Confirm Logout</h3>
+            <p class="logout-modal-message">Are you sure you want to logout? You will need to sign in again to access the guest dashboard.</p>
+            <div class="logout-modal-actions">
+                <button id="logoutConfirmBtn" class="logout-modal-btn logout-confirm-btn">LOGOUT</button>
+                <button id="logoutCancelBtn" class="logout-modal-btn logout-cancel-btn">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html> 
