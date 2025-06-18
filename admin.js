@@ -1047,7 +1047,7 @@ async function sendGuestArrivalNotification(guestId) {
         
         // Use API_BASE_URL from environment or fallback to local for development
                     // TEMPORARY: Always use Railway for testing
-            const API_BASE_URL = 'https://axlguestlistwebsite-production.up.railway.app';
+            const API_BASE_URL = 'https://axlguestlistwebsite-production-5c19.up.railway.app';
         
         const response = await fetch(`${API_BASE_URL}/api/notifications/guest-arrival`, {
             method: 'POST',
