@@ -1,29 +1,30 @@
 {
-  "name": "backend",
+  "name": "axl-guestlist-backend",
   "version": "1.0.0",
-  "description": "",
+  "description": "AXL Guestlist Backend API",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "server": "nodemon server.js",
-    "client": "cd ../ && python3 -m http.server 8000",
-    "dev": "npm run client",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon server.js",
+    "test": "echo \"No tests specified\""
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["api", "guestlist", "backend"],
+  "author": "Ben Little",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.0",
     "bcryptjs": "^3.0.2",
-    "concurrently": "^9.1.2",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.15.2",
-    "nodemailer": "^6.9.8",
+    "nodemailer": "^6.9.8"
+  },
+  "devDependencies": {
     "nodemon": "^3.1.10"
   }
 }
