@@ -60,7 +60,7 @@ const createTransporter = () => {
             passLength: gmailConfig.auth.pass ? gmailConfig.auth.pass.length : 0
         });
         
-        return nodemailer.createTransporter(gmailConfig);
+        return nodemailer.createTransport(gmailConfig);
     } else {
         console.log('❌ MISSING EMAIL VARIABLES - Using test email');
         console.log('Required: EMAIL_USER and EMAIL_PASS');
@@ -75,7 +75,7 @@ const createTestTransporter = async () => {
     console.log('⚠️ Creating test email transporter (ethereal.email)');
     try {
         const testAccount = await nodemailer.createTestAccount();
-        return nodemailer.createTransporter({
+        return nodemailer.createTransport({
             host: 'smtp.ethereal.email',
             port: 587,
             secure: false,
