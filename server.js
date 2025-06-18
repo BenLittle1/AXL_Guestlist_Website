@@ -1,56 +1,48 @@
 const express = require('express');
-const dotenv = require('dotenv');
 const cors = require('cors');
 
-// Load env vars
-dotenv.config();
+console.log('🚀 Starting AXL Guestlist API...');
 
 const app = express();
 
-// Enable CORS with specific options for Railway
-app.use(cors({
-    origin: true,
-    credentials: true
-}));
+// Basic middleware
+app.use(cors());
+app.use(express.json());
 
-// Body parser with size limits
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Railway health check endpoint (Railway might check this)
+// Health check - Railway might check this
 app.get('/health', (req, res) => {
+    console.log('Health check requested');
     res.status(200).json({ 
         status: 'OK', 
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        memory: process.memoryUsage()
+        timestamp: new Date().toISOString()
     });
 });
 
-// Basic health check route
+// Root endpoint
 app.get('/', (req, res) => {
+    console.log('Root endpoint requested');
     res.status(200).json({ 
         message: 'AXL Guestlist API is running', 
         timestamp: new Date().toISOString(),
-        status: 'healthy',
-        env: process.env.NODE_ENV || 'development'
+        status: 'healthy'
     });
 });
 
-// Catch-all for 404s before API routes
-app.get('/favicon.ico', (req, res) => res.status(204).send());
-
-// Define routes
+// Load routes only if they exist
 try {
-    app.use('/api/auth', require('./routes/auth'));
-    app.use('/api/notifications', require('./routes/notifications'));
+    const authRoutes = require('./routes/auth');
+    const notificationRoutes = require('./routes/notifications');
+    
+    app.use('/api/auth', authRoutes);
+    app.use('/api/notifications', notificationRoutes);
+    console.log('✅ Routes loaded successfully');
 } catch (error) {
-    console.error('Error loading routes:', error);
+    console.log('⚠️  Routes not loaded:', error.message);
 }
 
-// Error handling middleware
+// Basic error handler
 app.use((err, req, res, next) => {
-    console.error('Error:', err);
+    console.error('Server error:', err);
     res.status(500).json({ error: 'Internal server error' });
 });
 
@@ -61,40 +53,32 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 5001;
 
+console.log(`🔧 Attempting to start server on port ${PORT}...`);
+
 const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Server started successfully on port ${PORT}`);
-    console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🚀 Health check: http://localhost:${PORT}/health`);
+    console.log(`✅ Server successfully started on port ${PORT}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`💓 Health check: /health`);
 });
 
-// Improved error handling
 server.on('error', (error) => {
-    console.error('Server error:', error);
+    console.error('❌ Server startup error:', error);
+    process.exit(1);
 });
 
-// Handle graceful shutdown
-const shutdown = (signal) => {
-    console.log(`${signal} received, shutting down gracefully`);
-    server.close((err) => {
-        if (err) {
-            console.error('Error during shutdown:', err);
-            process.exit(1);
-        }
+// Keep the process alive
+const keepAlive = setInterval(() => {
+    console.log(`💓 Server is alive - ${new Date().toISOString()}`);
+}, 30000);
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('🛑 SIGTERM received, shutting down gracefully');
+    clearInterval(keepAlive);
+    server.close(() => {
         console.log('✅ Server closed successfully');
         process.exit(0);
     });
-};
-
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-    console.error('Uncaught Exception:', error);
-    process.exit(1);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-    process.exit(1);
-});
+console.log('🎯 Server initialization complete');
