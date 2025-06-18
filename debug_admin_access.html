@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Admin Access - AXL Guest List</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background: #1a1a1a;
+            color: #fff;
+            line-height: 1.4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #0066cc;
+        }
+        .log {
+            background: #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #00ff00;
+            font-size: 12px;
+        }
+        .error {
+            border-left-color: #ff0000;
+            background: #3a1a1a;
+        }
+        .warning {
+            border-left-color: #ffaa00;
+            background: #3a2a1a;
+        }
+        .success {
+            border-left-color: #00ff00;
+            background: #1a3a1a;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: monospace;
+        }
+        button:hover {
+            background: #0088ee;
+        }
+        button.fix {
+            background: #cc6600;
+        }
+        button.fix:hover {
+            background: #ee8800;
+        }
+        pre {
+            background: #111;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 11px;
+            white-space: pre-wrap;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            background: #2a2a2a;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Admin Access Issues</h1>
+        
+        <div class="section">
+            <h2>Step 1: Check Current Login Status</h2>
+            <button onclick="checkLoginStatus()">🔍 Check My Current Login</button>
+            <div id="loginLogs"></div>
+        </div>
+
+        <div class="section">
+            <h2>Step 2: Check Profile in Database</h2>
+            <button onclick="checkProfileStatus()">📊 Check My Profile Data</button>
+            <div id="profileLogs"></div>
+        </div>
+
+        <div class="section">
+            <h2>Step 3: Test User Management Access</h2>
+            <button onclick="testUserManagementAccess()">🧪 Test Access to User Management</button>
+            <div id="accessLogs"></div>
+        </div>
+
+        <div class="section">
+            <h2>Step 4: Check Database RLS Policies</h2>
+            <button onclick="checkRLSPolicies()">🛡️ Check Current RLS Policies</button>
+            <div id="rlsLogs"></div>
+        </div>
+
+        <div class="section">
+            <h2>Step 5: Quick Admin Fix</h2>
+            <p>If issues are found, this will generate a specific fix for your account:</p>
+            <button onclick="generateAdminFix()" class="fix">🔧 Generate My Admin Fix SQL</button>
+            <div id="fixLogs"></div>
+        </div>
+
+        <div class="section">
+            <h2>Step 6: Force Session Refresh</h2>
+            <p>Sometimes the session needs to be refreshed after database changes:</p>
+            <button onclick="forceSessionRefresh()">🔄 Force Logout & Redirect to Login</button>
+            <div id="sessionLogs"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let currentProfile = null;
+
+        function log(message, type = 'log', containerId) {
+            const container = document.getElementById(containerId);
+            const logDiv = document.createElement('div');
+            logDiv.className = `log ${type}`;
+            logDiv.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            container.appendChild(logDiv);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        async function checkLoginStatus() {
+            const containerId = 'loginLogs';
+            document.getElementById(containerId).innerHTML = '';
+            
+            try {
+                const { data: { user }, error } = await window.supabaseClient.auth.getUser();
+                
+                if (error) {
+                    log(`❌ Auth error: ${error.message}`, 'error', containerId);
+                    return;
+                }
+                
+                if (!user) {
+                    log('❌ Not logged in!', 'error', containerId);
+                    log('Please login first at login.html', 'warning', containerId);
+                    return;
+                }
+
+                currentUser = user;
+                log(`✅ Logged in as: ${user.email}`, 'success', containerId);
+                log(`User ID: ${user.id}`, 'log', containerId);
+                log(`Email confirmed: ${user.email_confirmed_at ? 'Yes' : 'No'}`, 'log', containerId);
+                log(`Created: ${new Date(user.created_at).toLocaleString()}`, 'log', containerId);
+
+                // Check user metadata
+                if (user.user_metadata && Object.keys(user.user_metadata).length > 0) {
+                    log(`User metadata: <pre>${JSON.stringify(user.user_metadata, null, 2)}</pre>`, 'log', containerId);
+                }
+
+                if (user.app_metadata && Object.keys(user.app_metadata).length > 0) {
+                    log(`App metadata: <pre>${JSON.stringify(user.app_metadata, null, 2)}</pre>`, 'log', containerId);
+                }
+
+            } catch (error) {
+                log(`❌ Login check failed: ${error.message}`, 'error', containerId);
+            }
+        }
+
+        async function checkProfileStatus() {
+            const containerId = 'profileLogs';
+            document.getElementById(containerId).innerHTML = '';
+
+            if (!currentUser) {
+                log('❌ Please check login status first', 'error', containerId);
+                return;
+            }
+
+            try {
+                // Check if profile exists
+                const { data: profile, error } = await window.supabaseClient
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', currentUser.id)
+                    .single();
+
+                if (error) {
+                    log(`❌ Profile error: ${error.message}`, 'error', containerId);
+                    if (error.code === 'PGRST116') {
+                        log('❌ Profile does NOT exist in database!', 'error', containerId);
+                        log('This might be why you can\'t access admin features', 'warning', containerId);
+                    }
+                    return;
+                }
+
+                currentProfile = profile;
+                log('✅ Profile found in database:', 'success', containerId);
+                log(`<pre>${JSON.stringify(profile, null, 2)}</pre>`, 'log', containerId);
+
+                // Check specific admin requirements
+                log('=== ADMIN REQUIREMENTS CHECK ===', 'log', containerId);
+                
+                if (profile.access_level === 'admin') {
+                    log('✅ Access level: admin', 'success', containerId);
+                } else {
+                    log(`❌ Access level: ${profile.access_level} (needs to be 'admin')`, 'error', containerId);
+                }
+
+                if (profile.approved === true) {
+                    log('✅ Approved: true', 'success', containerId);
+                } else {
+                    log(`❌ Approved: ${profile.approved} (needs to be true)`, 'error', containerId);
+                }
+
+                // Check for organization columns (should NOT exist after revert)
+                if (profile.hasOwnProperty('organization_id')) {
+                    log(`⚠️ Organization ID still exists: ${profile.organization_id}`, 'warning', containerId);
+                    log('The database revert may not have completed properly', 'warning', containerId);
+                } else {
+                    log('✅ No organization_id column (good - revert worked)', 'success', containerId);
+                }
+
+                if (profile.hasOwnProperty('is_security')) {
+                    log(`⚠️ is_security column still exists: ${profile.is_security}`, 'warning', containerId);
+                } else {
+                    log('✅ No is_security column (good - revert worked)', 'success', containerId);
+                }
+
+            } catch (error) {
+                log(`❌ Profile check failed: ${error.message}`, 'error', containerId);
+            }
+        }
+
+        async function testUserManagementAccess() {
+            const containerId = 'accessLogs';
+            document.getElementById(containerId).innerHTML = '';
+
+            if (!currentUser) {
+                log('❌ Please check login status first', 'error', containerId);
+                return;
+            }
+
+            try {
+                log('🧪 Testing access to user management data...', 'log', containerId);
+
+                // Test 1: Can we query profiles table?
+                const { data: profiles, error: profilesError } = await window.supabaseClient
+                    .from('profiles')
+                    .select('id, email, full_name, access_level, approved')
+                    .limit(5);
+
+                if (profilesError) {
+                    log(`❌ Cannot access profiles table: ${profilesError.message}`, 'error', containerId);
+                    log(`Error code: ${profilesError.code}`, 'error', containerId);
+                    log(`Error details: ${profilesError.details}`, 'error', containerId);
+                } else {
+                    log(`✅ Can access profiles table (found ${profiles.length} profiles)`, 'success', containerId);
+                    log(`Sample data: <pre>${JSON.stringify(profiles.slice(0, 2), null, 2)}</pre>`, 'log', containerId);
+                }
+
+                // Test 2: Can we query guests table?
+                const { data: guests, error: guestsError } = await window.supabaseClient
+                    .from('guests')
+                    .select('id, name, email, status')
+                    .limit(3);
+
+                if (guestsError) {
+                    log(`❌ Cannot access guests table: ${guestsError.message}`, 'error', containerId);
+                } else {
+                    log(`✅ Can access guests table (found ${guests.length} guests)`, 'success', containerId);
+                }
+
+                // Test 3: Check if organizations table still exists
+                const { data: orgs, error: orgsError } = await window.supabaseClient
+                    .from('organizations')
+                    .select('*')
+                    .limit(1);
+
+                if (orgsError) {
+                    if (orgsError.code === '42P01') {
+                        log('✅ Organizations table does not exist (good - revert worked)', 'success', containerId);
+                    } else {
+                        log(`Organization table check error: ${orgsError.message}`, 'warning', containerId);
+                    }
+                } else {
+                    log('⚠️ Organizations table still exists (revert may be incomplete)', 'warning', containerId);
+                }
+
+            } catch (error) {
+                log(`❌ Access test failed: ${error.message}`, 'error', containerId);
+            }
+        }
+
+        async function checkRLSPolicies() {
+            const containerId = 'rlsLogs';
+            document.getElementById(containerId).innerHTML = '';
+
+            try {
+                log('🛡️ Checking current RLS policies...', 'log', containerId);
+                
+                // We can't directly query pg_policies from the client, but we can infer from our access tests
+                log('RLS policies cannot be directly queried from client side', 'warning', containerId);
+                log('Based on access tests above, we can infer if policies are working correctly', 'log', containerId);
+                
+                if (currentProfile) {
+                    if (currentProfile.access_level === 'admin' && currentProfile.approved === true) {
+                        log('✅ Your profile meets admin requirements', 'success', containerId);
+                        log('If you still can\'t access user management, it\'s likely an RLS policy issue', 'warning', containerId);
+                    } else {
+                        log('❌ Your profile does not meet admin requirements', 'error', containerId);
+                        log('This is likely why you can\'t access user management', 'warning', containerId);
+                    }
+                }
+
+            } catch (error) {
+                log(`❌ RLS check failed: ${error.message}`, 'error', containerId);
+            }
+        }
+
+        async function generateAdminFix() {
+            const containerId = 'fixLogs';
+            document.getElementById(containerId).innerHTML = '';
+
+            if (!currentUser || !currentProfile) {
+                log('❌ Please run the previous checks first', 'error', containerId);
+                return;
+            }
+
+            log('🔧 Generating specific fix for your account...', 'log', containerId);
+
+            const fixes = [];
+            
+            // Check what needs fixing
+            if (currentProfile.access_level !== 'admin') {
+                fixes.push(`access_level = 'admin'`);
+            }
+            
+            if (currentProfile.approved !== true) {
+                fixes.push(`approved = true`);
+            }
+
+            if (fixes.length === 0) {
+                log('✅ Your profile looks correct. The issue might be with RLS policies.', 'success', containerId);
+                
+                const rlsFixSQL = `
+-- Your profile looks correct, but RLS policies might need fixing
+-- Run this to ensure proper RLS policies are in place:
+
+-- Drop any remaining multi-org policies
+DROP POLICY IF EXISTS "Admin users can view organization profiles" ON profiles;
+DROP POLICY IF EXISTS "Admin users can update organization profiles" ON profiles;
+
+-- Create simple admin policies
+CREATE POLICY "Admins can view all profiles" ON profiles
+    FOR SELECT USING (
+        auth.uid() IN (
+            SELECT id FROM profiles 
+            WHERE access_level = 'admin' 
+            AND approved = TRUE
+        )
+    );
+
+CREATE POLICY "Admins can update all profiles" ON profiles
+    FOR UPDATE USING (
+        auth.uid() IN (
+            SELECT id FROM profiles 
+            WHERE access_level = 'admin' 
+            AND approved = TRUE
+        )
+    );
+
+-- Verify your profile
+SELECT id, email, full_name, access_level, approved 
+FROM profiles 
+WHERE id = '${currentUser.id}';
+`;
+                
+                log(`<pre>${rlsFixSQL}</pre>`, 'log', containerId);
+                
+            } else {
+                const profileFixSQL = `
+-- Fix your admin profile
+UPDATE profiles 
+SET 
+    ${fixes.join(',\n    ')},
+    updated_at = NOW()
+WHERE id = '${currentUser.id}';
+
+-- Verify the fix
+SELECT id, email, full_name, access_level, approved 
+FROM profiles 
+WHERE id = '${currentUser.id}';
+`;
+                
+                log('✅ Generated profile fix SQL:', 'success', containerId);
+                log(`<pre>${profileFixSQL}</pre>`, 'log', containerId);
+            }
+        }
+
+        async function forceSessionRefresh() {
+            const containerId = 'sessionLogs';
+            document.getElementById(containerId).innerHTML = '';
+
+            log('🔄 Forcing session refresh...', 'log', containerId);
+            
+            try {
+                await window.supabaseClient.auth.signOut();
+                log('✅ Logged out successfully', 'success', containerId);
+                log('Redirecting to login page...', 'log', containerId);
+                
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+                
+            } catch (error) {
+                log(`❌ Logout failed: ${error.message}`, 'error', containerId);
+            }
+        }
+
+        // Auto-run login check on load
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(checkLoginStatus, 500);
+        });
+    </script>
+</body>
+</html> 
