@@ -39,6 +39,21 @@
         </div>
     </div>
 
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Status Check Modal -->
+    <div id="statusCheckModal" class="status-check-modal">
+        <div class="status-check-content">
+            <div id="statusCheckIcon" class="status-check-icon">🔄</div>
+            <h3 id="statusCheckTitle" class="status-check-title">Checking Status...</h3>
+            <p id="statusCheckMessage" class="status-check-message">Please wait while we check your account approval status.</p>
+            <div class="status-check-actions">
+                <button id="statusCheckClose" class="status-check-btn secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Check authentication and display user info
         document.addEventListener('DOMContentLoaded', async function() {
@@ -56,6 +71,7 @@
                 // Set up event listeners
                 document.getElementById('checkStatusBtn').addEventListener('click', checkApprovalStatus);
                 document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+                document.getElementById('statusCheckClose').addEventListener('click', hideStatusCheckModal);
 
             } catch (error) {
                 console.error('Error checking user status:', error);
@@ -63,12 +79,82 @@
             }
         });
 
+        // Toast notification system
+        function showToast(type, title, message) {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: '✅',
+                info: 'ℹ️',
+                warning: '⚠️',
+                error: '❌'
+            };
+            
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type] || 'ℹ️'}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            // Show toast
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toastContainer.removeChild(toast);
+                    }
+                }, 300);
+            }, 5000);
+        }
+
+        // Show status check modal
+        function showStatusCheckModal(type, title, message, showCloseButton = true) {
+            const modal = document.getElementById('statusCheckModal');
+            const icon = document.getElementById('statusCheckIcon');
+            const titleEl = document.getElementById('statusCheckTitle');
+            const messageEl = document.getElementById('statusCheckMessage');
+            const closeBtn = document.getElementById('statusCheckClose');
+            
+            const icons = {
+                checking: '🔄',
+                approved: '✅',
+                pending: '⏳',
+                error: '❌'
+            };
+            
+            icon.textContent = icons[type] || '🔄';
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            closeBtn.style.display = showCloseButton ? 'block' : 'none';
+            
+            modal.classList.add('show');
+        }
+
+        // Hide status check modal
+        function hideStatusCheckModal() {
+            const modal = document.getElementById('statusCheckModal');
+            modal.classList.remove('show');
+        }
+
         // Check if user has been approved
         async function checkApprovalStatus() {
             try {
+                // Show checking modal
+                showStatusCheckModal('checking', 'Checking Status...', 'Please wait while we verify your account approval status.', false);
+                
                 const { data: { user } } = await window.supabaseClient.auth.getUser();
                 
                 if (!user) {
+                    hideStatusCheckModal();
                     window.location.href = 'login.html';
                     return;
                 }
@@ -81,20 +167,31 @@
                     .single();
 
                 if (profile && profile.approved && profile.access_level) {
-                    // User has been approved, redirect to appropriate page
-                    if (profile.access_level === 'admin') {
-                        window.location.href = 'admin.html';
-                    } else {
-                        window.location.href = 'admin.html'; // Users now have guest management access
-                    }
+                    // User has been approved
+                    showStatusCheckModal('approved', 'Account Approved!', 
+                        `Great news! Your account has been approved. You will be redirected to the dashboard in a moment.`, true);
+                    
+                    showToast('success', 'Account Approved', 'Welcome! Redirecting to dashboard...');
+                    
+                    setTimeout(() => {
+                        if (profile.access_level === 'admin') {
+                            window.location.href = 'admin.html';
+                        } else {
+                            window.location.href = 'admin.html'; // Users now have guest management access
+                        }
+                    }, 2000);
                 } else {
                     // Still pending
-                    alert('Your account is still pending approval. Please check back later or contact your administrator.');
+                    showStatusCheckModal('pending', 'Still Pending', 
+                        'Your account is still awaiting administrator approval. Please check back later or contact your administrator for assistance.', true);
+                    
+                    showToast('info', 'Status Update', 'Account still pending approval');
                 }
 
             } catch (error) {
                 console.error('Error checking approval status:', error);
-                alert('Error checking status. Please try again later.');
+                hideStatusCheckModal();
+                showToast('error', 'Check Failed', 'Unable to check status. Please try again later.');
             }
         }
 

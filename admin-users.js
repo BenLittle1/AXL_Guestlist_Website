@@ -1,6 +1,43 @@
 // DOM elements - using querySelector to access elements immediately
 let currentUserEl, usersContainer, backBtn, logoutBtn, refreshBtn;
 
+// Toast notification system
+function showToast(type, title, message) {
+    const toastContainer = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    const icons = {
+        success: '✅',
+        info: 'ℹ️',
+        warning: '⚠️',
+        error: '❌'
+    };
+    
+    toast.innerHTML = `
+        <div class="toast-icon">${icons[type] || 'ℹ️'}</div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    // Show toast
+    setTimeout(() => toast.classList.add('show'), 100);
+    
+    // Auto remove after 4 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toastContainer.removeChild(toast);
+            }
+        }, 300);
+    }, 4000);
+}
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async function() {
     // Get DOM elements
@@ -53,8 +90,8 @@ async function checkAuth() {
         const { data: { user } } = await window.supabaseClient.auth.getUser();
         
         if (!user) {
-            alert('Please log in to access this page.');
-            window.location.href = 'login.html';
+            showToast('error', 'Authentication Required', 'Please log in to access this page.');
+            setTimeout(() => window.location.href = 'login.html', 1500);
             return;
         }
 
@@ -66,16 +103,16 @@ async function checkAuth() {
             .single();
 
         if (!profile || profile.access_level !== 'admin' || !profile.approved) {
-            alert('Admin privileges required to access user management.');
-            window.location.href = 'admin.html';
+            showToast('error', 'Access Denied', 'Admin privileges required to access user management.');
+            setTimeout(() => window.location.href = 'admin.html', 1500);
             return;
         }
 
         console.log('✅ Admin access verified');
     } catch (error) {
         console.error('Auth check failed:', error);
-        alert('Authentication error. Please try logging in again.');
-        window.location.href = 'login.html';
+        showToast('error', 'Authentication Error', 'Please try logging in again.');
+        setTimeout(() => window.location.href = 'login.html', 1500);
     }
 }
 
@@ -386,11 +423,14 @@ async function handleRoleUpdate(e) {
         approvalSelect.dataset.currentApproval = newApproval.toString();
 
         console.log(`✅ Updated user ${userId}: ${changes.join(' and ')}`);
-        alert('User updated successfully!');
+        
+        // Show success toast with details
+        const changesList = changes.join(' and ');
+        showToast('success', 'User Updated', `Successfully updated ${changesList} for user.`);
 
     } catch (error) {
         console.error('Error updating user:', error);
-        alert(`Failed to update user: ${error.message}`);
+        showToast('error', 'Update Failed', `Failed to update user: ${error.message}`);
         
         // Reset selects to original values
         roleSelect.value = currentRole;
